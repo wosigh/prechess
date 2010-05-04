@@ -1,0 +1,12 @@
+cd   ./polyglot/src 
+call _buildit.cmd
+cd   ../..
+cd  ./stockfish/src
+call _buildit.cmd
+cd   ../..
+cd  ./glaurung/src
+cd   ../..
+call _buildit.cmd
+cd  ./fruit/src
+call _buildit.cmd
+cd   ../..
