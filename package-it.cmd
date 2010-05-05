@@ -14,8 +14,5 @@ copy engines\stockfish\stockfish %STAGING_DIR%
 copy engines\fruit\fruit %STAGING_DIR%
 copy engines\polyglot.ini %STAGING_DIR%
 copy postinst %STAGING_DIR%
-echo filemode.755=polyglot > %STAGING_DIR%\package.properties
-echo filemode.755=stockfish >> %STAGING_DIR%\package.properties
-echo filemode.755=glaurung >> %STAGING_DIR%\package.properties
-echo filemode.755=fruit >> %STAGING_DIR%\package.properties
+echo filemode.755=polyglot,stockfish,glaurung,fruit > %STAGING_DIR%\package.properties
 pdk-package %STAGING_DIR%
