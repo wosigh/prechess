@@ -2,11 +2,20 @@ var bestmove;
 var running=0;
 var mymoves;
 var b;
+var deltas = [];
+var delta_cnts = [];
 var status="nnn";
 var fenstring;
 var setTimeValue=1000;
 var loopTimer;
 var last;
+var engineplaywhite;
+var engineplayblack;
+
+var WHITE_FIG=64;
+var BLACK_FIG=128;
+var CHANGE_COLOR=192;
+
 
  function GameAssistant() {
     /* this is the creator function for your scene assistant object. It will be passed all the
@@ -41,36 +50,36 @@ GameAssistant.prototype.setup = function () {
         }]
     }; // Setup toggle widget and an observer for when it is changed
     this.whitetoggle = {
-        trueLabel: 'Yes',
+        trueLabel: '1',
         //if the state is true, what to label the toggleButton; default is 'On'
-        //trueValue:  'true' ,//if the state is true, what to set the model[property] to; default if not specified is true
-        falseLabel: 'No',
+        trueValue:  '1' ,//if the state is true, what to set the model[property] to; default if not specified is true
+        falseLabel: '0',
         //if the state is false, what to label the toggleButton; default is Off
-        //falseValue: 'false', //if the state is false, , what to set the model[property] to; default if not specific is false],
+        falseValue: '0', //if the state is false, , what to set the model[property] to; default if not specific is false],
         fieldName: 'PlayWhite' //name of the field; optional
     }
     this.blacktoggle = {
-        trueLabel: 'Yes',
+        trueLabel: '1',
         //if the state is true, what to label the toggleButton; default is 'On'
-        //trueValue:  'true' ,//if the state is true, what to set the model[property] to; default if not specified is true
-        falseLabel: 'No',
+        trueValue:  '1' ,//if the state is true, what to set the model[property] to; default if not specified is true
+        falseLabel: '0',
         //if the state is false, what to label the toggleButton; default is Off
-        //falseValue: 'false', //if the state is false, , what to set the model[property] to; default if not specific is false],
+        falseValue: 'false', //if the state is false, , what to set the model[property] to; default if not specific is false],
         fieldName: 'PlayBlack' //name of the field; optional
     }
     this.tModel = {
-        value: true,
+        value: false,
         // Current value of widget, from choices array.
         disabled: false //whether or not the checkbox value can be changed; if true, this cannot be changed; default is false			
     }
-    this.fmodel = {
+    this.fModel = {
         value: false,
         // Current value of widget, from choices array.
         disabled: false //whether or not the checkbox value can be changed; if true, this cannot be changed; default is false	
     }
     this.controller.setupWidget('BackButton', this.backbutton, {label: $L('Back')});
     this.controller.setupWidget('PlayWhite', this.whitetoggle, this.fModel);
-    this.controller.setupWidget('PlayBlack', this.whitetoggle, this.tModel);
+    this.controller.setupWidget('PlayBlack', this.blacktoggle, this.tModel);
     Mojo.Event.listen(this.controller.get('PlayWhite'), Mojo.Event.propertyChange, this.whitetogglePressed.bindAsEventListener(this));
     Mojo.Event.listen(this.controller.get('PlayBlack'), Mojo.Event.propertyChange, this.blacktogglePressed.bindAsEventListener(this)); //Mojo.Event.listen(this.controller.get('Button'),Mojo.Event.tap,this.buttonPressed.bindAsEventListener(this));
     Mojo.Event.listen(this.controller.get('BackButton'), Mojo.Event.tap, this.backbutton.bind(this));
@@ -130,13 +139,13 @@ GameAssistant.prototype.setup = function () {
         pimg[j] = new Image();
         pimg[j].src = "images/" + i[j] + ".png";
     }
-    N = 1;
+    N = 1;			// move no
     K = "";
-    F = 0;
-    px = 0;
-    py = 0;
+    F = 0;			// 0 human to play 1 computer to play 
+    px = 0;			// x-pos click
+    py = 0;			// y-pos click
     mymoves = 0;
-	l();
+	l();	
 	Mojo.Log.error('end of setup');
 };
 
@@ -196,16 +205,55 @@ GameAssistant.prototype.selectorChanged = function (event) {
     	
 }
 GameAssistant.prototype.whitetogglePressed = function (event) { //Display the value of the toggle
-    //this.showDialogBox( "The toggle value changed" ,"Toggle value is now: " + event.value);    
-    pw(event.value);
+    if (event.value=="1")
+    {
+    	Mojo.Log.error("xxx");
+    	engineplaywhite=true;
+        pw(event.value);
+    }
+    else
+    {
+    	Mojo.Log.error("zzz");
+    	engineplaywhite=false;
+    }
+    
 };
 GameAssistant.prototype.blacktogglePressed = function (event) { //Display the value of the toggle
-    //this.showDialogBox( "The toggle value changed" ,"Toggle value is now: " + event.value);
-    pb(event.value);
+    if (event.value=="1")
+    {
+    	pb(event.value);
+    	engineplayblack=true;
+    }
+    else
+    {
+    	engineplayblack=false;
+    }	
 };
 
 GameAssistant.prototype.backbutton = function (event) {
-    Mojo.Log.error("back");	
+    Mojo.Log.error("sback1");
+    Mojo.Log.error("wback2");	
+    
+    this.tModel.value=this.fModel.falseValue;
+    this.fModel.value=this.fModel.falseValue;
+	this.controller.modelChanged(this.tModel);
+	this.controller.modelChanged(this.fModel);
+	engineplaywite=engineplayblack=false;    
+    
+    if (delta_cnts.length > 0 )
+    {
+	    var delta_cnt = delta_cnts.pop();
+	    var delta = deltas.pop();
+	    for (var d=0;d<delta_cnt*2;d=d+2)
+	    {
+	    	b[delta[d]]=delta[d+1];    	
+	    }	    
+	    mymoves= mymoves-1 ;
+	    dxxx(b);
+	    last = !last;
+	    F=0;
+	    c = c ^ CHANGE_COLOR ;
+	}
 };
 
 
@@ -246,7 +294,10 @@ GameAssistant.prototype.cleanup = function (event) {
     /* this function should do any cleanup needed before the scene is destroyed as 
 	   a result of being popped off the scene stack */
 };
+
+// showmoves
 function sm(i) {
+	Mojo.Log.error("function sm in");
     if (N > 200) return;
     var j = "abcdefgh";
     if (N & 1) {
@@ -258,6 +309,7 @@ function sm(i) {
     else K += j.charAt(i.x) + (8 - i.y) + " " + j.charAt(i.X) + (8 - i.Y);
     if (++N & 1) K += "XX\n";
     // $($L("gameLog")).innerHTML = "<pre>" + K + "</pre>"; //if (! ((N - 1) % 20)) K = "";
+    Mojo.Log.error("function sm out");
 }
 
 function bestmove2board()
@@ -265,7 +317,11 @@ function bestmove2board()
     //0123456789012
     //bestmove f3g5
     // Mojo.Log.error("bestmove2board%s",bestmove);
-        var za="h";
+    
+    var b_old2= [];
+    b_old2=b.clone();
+    
+    var za="h";
 	var offset=1+za.charCodeAt(0);	
 	var type=0;
 	x1=offset-bestmove.charCodeAt(9);
@@ -294,7 +350,7 @@ function bestmove2board()
 	{
 		case 1: // -1- castling
 			b[dest]=ps;
-			if (blackgroundline) ad=64 ; else ad=0; 				
+			if (blackgroundline) ad=WHITE_FIG ; else ad=0; 				
 			if (movetoright)
 			{
 				if (blackgroundline)
@@ -337,7 +393,7 @@ function bestmove2board()
 		break;
 		
 		case 3: // -3- promotion always queen
-		   if (blackgroundline) ad=64 ; else ad=0; 				
+		   if (blackgroundline) ad=WHITE_FIG ; else ad=0; 				
 			
 			b[dest]=165-ad;
 			b[source]=0;
@@ -349,7 +405,12 @@ function bestmove2board()
 		break;
 	}
 	
-	nx();
+	delta_calc(b_old2,b);
+	
+	// nx();
+	dxxx(b);
+	c ^= CHANGE_COLOR;
+    F = 0;    
 	mymoves = mymoves + 1;
 	running=0;
 	st("#:" + mymoves + " "+ bestmove );
@@ -498,6 +559,8 @@ function smfen(b,c,mymoves) {
 function un(u, b) {
     for (var i = u.x.length - 1; i >= 0; --i) Z(b, u.x[i], u.y[i], u.p[i]);
 }
+
+
 function au(u, b, x, y) {
     u.x.push(x);
     u.y.push(y);
@@ -518,37 +581,57 @@ function U() {
     this.y = [];
     this.p = [];
 }
+
+// empty
 function em(b, x, y) {
     return ! b[x + y * 8];
 }
+
+// iswhite
 function ge(b, x, y) {
     return b[x + y * 8] & 7;
 }
+
+
 function co(b, x, y) {
-    return b[x + y * 8] & 192;
+    return b[x + y * 8] & CHANGE_COLOR;
 }
+
+// is figure with right color
 function sa(b, x, y, c) {
     var i = b[x + y * 8];
     return i && (i & c);
 }
+
+
 function op(b, x, y, c) {
     var i = b[x + y * 8];
     return i && !(i & c);
 }
+
+// already moved 
 function mo(b, x, y) {
     var i = b[x + y * 8];
     return i && (i & 32);
 }
+
+
 function la(b, x, y) {
     var i = b[x + y * 8];
     return i && (i & 16);
 }
+
+
 function ra(x, y) {
     return x >= 0 && x < 8 && y >= 0 && y < 8;
 }
+
+
 function di(c) {
-    return c == 64 ? -1 : 1;
+    return c == WHITE_FIG ? -1 : 1;
 }
+
+// 
 function Z(b, x, y, p) {
     b[x + y * 8] = p;
     return b;
@@ -561,13 +644,19 @@ function t(b, x, y, i, j, c, l) {
     if (ra(X, Y) && op(b, X, Y, c)) l.push(new P(x, y, X, Y, 0));
     return l;
 }
+
+// rook
 function ro(b, x, y, c, l) {
     t(b, x, y, 1, 0, c, t(b, x, y, -1, 0, c, t(b, x, y, 0, 1, c, t(b, x, y, 0, -1, c, l))));
 }
+
+// bishop
 function bi(b, x, y, c, l) {
     t(b, x, y, 1, 1, c, t(b, x, y, -1, -1, c, t(b, x, y, 1, -1, c, t(b, x, y, -1, 1, c, l))));
 }
 
+
+// king
 function ki(b, x, y, c, l) {
     for (var i = -1; i < 2; ++i) for (var j = -1; j < 2; ++j) {
         var X = x + i;
@@ -578,7 +667,7 @@ function ki(b, x, y, c, l) {
         var u = new U();
         au(u, b, x, y);
         Z(b, x, y, 0);
-        var i = fi(b, c ^ 192);
+        var i = fi(b, c ^ CHANGE_COLOR);
         var j = 0;
         var X = -1;
         while (!j && ++X != i.length) j = i[X].Y == y && i[X].X == 5;
@@ -588,7 +677,7 @@ function ki(b, x, y, c, l) {
         var u = new U();
         au(u, b, x, y);
         Z(b, x, y, 0);
-        var i = fi(b, c ^ 192);
+        var i = fi(b, c ^ CHANGE_COLOR);
         var j = 0;
         var X = -1;
         while (!j && ++X != i.length) j = i[X].Y == y && i[X].X == 3;
@@ -596,6 +685,8 @@ function ki(b, x, y, c, l) {
         un(u, b);
     }
 }
+
+// knight
 function kn(b, x, y, c, l) {
     for (var i = -2; i < 3; ++i) for (var j = -2; j < 3; ++j) if (Math.abs(i) + Math.abs(j) == 3) {
         var X = x + i;
@@ -603,6 +694,8 @@ function kn(b, x, y, c, l) {
         if (ra(X, Y) && !sa(b, X, Y, c)) l.push(new P(x, y, X, Y, 0));
     }
 }
+
+// pawn
 function pa(b, x, y, c, l) {
     var Y = y + di(c);
     var Z = y + di(c) * 2;
@@ -621,17 +714,33 @@ function pa(b, x, y, c, l) {
         }
     }
 }
+
+// draw
 function d(b) {
     for (var y = 0; y < 8; ++y) for (var x = 0; x < 8; ++x) {
         var i = "<img src=\"images/";
         if (F == 1 && x == px && y == py) i += "s";
         i += (x + y & 1) ? "b": "w";
-        if (!em(b, x, y)) i += (sa(b, x, y, 64) ? "w": "b") + (ge(b, x, y) & 7);
+        if (!em(b, x, y)) i += (sa(b, x, y, WHITE_FIG) ? "w": "b") + (ge(b, x, y) & 7);
         document.getElementById("" + x + y).innerHTML = i + ".png\">";
     }
 }
 
+
+function dxxx(b) {
+    for (var y = 0; y < 8; ++y) for (var x = 0; x < 8; ++x) {
+        var i = "<img src=\"images/";
+        i += (x + y & 1) ? "b": "w";
+        if (!em(b, x, y)) i += (sa(b, x, y, WHITE_FIG) ? "w": "b") + (ge(b, x, y) & 7);
+        document.getElementById("" + x + y).innerHTML = i + ".png\">";
+    }
+}
+
+
+
+
 function ma(b, m) {
+	Mojo.Log.error("function ma in");
     u = new U();
     for (var x = 0; x < 8; ++x) for (var y = 0; y < 8; ++y) if (la(b, x, y)) {
         au(u, b, x, y);
@@ -654,10 +763,11 @@ function ma(b, m) {
         au(u, b, 0, m.y);
         Z(Z(b, 3, m.y, ge(b, 0, m.y) | co(b, 0, m.y) | 32), 0, m.y, 0);
     }
+    Mojo.Log.error("function ma out");    
     return u;
 }
 
-
+// figur
 function fi(b, c) {
     var l = [];
     for (var x = 0; x < 8; ++x) for (var y = 0; y < 8; ++y) if (sa(b, x, y, c)) {
@@ -689,59 +799,89 @@ function sc(b, c) {
     var s = 0;
     for (var x = 0; x < 8; ++x) for (var y = 0; y < 8; ++y) {
         var i = ge(b, x, y);
-        if (i) if (sa(b, x, y, 128)) s += Sb[i == 6 ? 6 : i - 1][(7 - x) + y * 8] + Sp[i];
+        if (i) if (sa(b, x, y, BLACK_FIG)) s += Sb[i == 6 ? 6 : i - 1][(7 - x) + y * 8] + Sp[i];
         else s -= Sb[i - 1][x + (7 - y) * 8] + Sp[i];
     }
-    return c == 128 ? s: -s;
+    return c == BLACK_FIG ? s: -s;
 }
 function cpu(white) {
+	Mojo.Log.error("function cpu in");
+    
     //sm(bm);
-	last=white;
 	if (running==0)
 	{
 	    // ma(b, bm);
 	    running=1;
-  		fenstring=smfen(b,white,mymoves)
+  		fenstring=smfen(b,!di(c),mymoves)
 		//plugin_status();
 		
 		setTimeout("plugin_calculate()",0);								
 		setTimeout("plugin_stop()",setTimeValue);		
 		setTimeout("plugin_result()",setTimeValue+1000);		    
 	}		
+	Mojo.Log.error("function cpu out");
+    
 }
 cpw = 0;
 cpb = 1;
+
+// playwhite
 function pw(e) {
+	Mojo.Log.error("function pw in");
+    
     cpw = e;
-    if (F < 2 && cpw && c == 64) {
+    if (F < 2 && cpw && c == WHITE_FIG) {
         F = 2;
         setTimeout("cpu(true)", 800);
 		
     }
+    
+    Mojo.Log.error("function pw out");
+    
+    
 //    if (cpw && cpb) {
 //        setTimeout("cpu()", 100);
 //    }
 	
 }
+
+// playback
 function pb(e) {
     cpb = e;
-    if (F < 2 && cpb && c == 128) {
+    
+    Mojo.Log.error("function pb in");
+    
+    
+    if (F < 2 && cpb && c == BLACK_FIG) {
         F = 2;
         setTimeout("cpu(false)", 800);
     }
+    
+    Mojo.Log.error("function pb out");
+    
 //    if (cpw && cpb) {
 //        setTimeout("cpu()", 100);
 //    }
 	
 }
-function l() {
-    b = [];
+function l(update) {
+    Mojo.Log.error("function l in");
+    if (!update)
+    {
+    	b = [];
+    }
     for (i = 0; i < 8; ++i) Z(Z(b, i, 6, 65), i, 1, 129);
     d(Z(Z(Z(Z(Z(Z(Z(Z(Z(Z(Z(Z(Z(Z(Z(Z(b, 0, 0, 132), 1, 0, 130), 2, 0, 131), 3, 0, 133), 4, 0, 134), 5, 0, 131), 6, 0, 130), 7, 0, 132), 0, 7, 68), 1, 7, 66), 2, 7, 67), 3, 7, 69), 4, 7, 70), 5, 7, 67), 6, 7, 66), 7, 7, 68));
-    c = 64;
+    c = WHITE_FIG;
+    Mojo.Log.error("function l out");
 }
 
 function hu(x, y) {
+	Mojo.Log.error("function hu in");
+    var b_old1=[];
+    
+    b_old1=b.clone();
+                
     if (F == 0) {
         if (sa(b, x, y, c)) {
             px = x;
@@ -759,7 +899,7 @@ function hu(x, y) {
         for (var i = 0; i < m.length; ++i) {
             if (m[i].x == px && m[i].y == py && m[i].X == x && m[i].Y == y && ge(b, x, y) != 6) {
                 var u = ma(b, m[i]);
-                var o = fi(b, c ^ 192);
+                var o = fi(b, c ^ CHANGE_COLOR);
                 for (var j = 0; j < o.length; ++j) if (ge(b, o[j].X, o[j].Y) == 6 && sa(b, o[j].X, o[j].Y, c)) {
                     un(u, b);
                     st("Invalid move");
@@ -767,25 +907,55 @@ function hu(x, y) {
                 }
                 //sm(m[i]);
 				//smfen(b,2,99);
-                nx();
-                last=!last;
+				delta_calc(b_old1,b);
+				nx();
                 return;
             }
         }
         st("Invalid move");
     }
+    Mojo.Log.error("function hu out");
 }
 
+function delta_calc(b_old,b_new)
+{
+	var delta = [];
+	var delta_cnt;
+	Mojo.Log.error("delta_calc %d %d",b_old.length,b_new.length );
+	delta_cnt=0;
+	for (var x=0;x<8;x++)
+    {
+    	for (var y=0;y<8;y++)
+    	{
+    		if (b_old[x+y*8]!= b_new[x+y*8])
+    		{
+    			
+    			delta[delta_cnt]= x+y*8;
+    			Mojo.Log.error("pos--%d",x+y*8);
+    			delta[delta_cnt+1]= b_old[x+y*8] ;
+    			Mojo.Log.error("val old--%d",b_old[x+y*8]);
+    			Mojo.Log.error("val new--%d",b_new[x+y*8]);
+    			
+    			delta_cnt ++ ;
+    			delta_cnt ++ ;
+    		}
+    	}	
+    }
+    
+    deltas.push(delta);
+    delta_cnts.push(delta_cnt);
+}
 
 function nx(redraw) {
-    c ^= 192;
+    Mojo.Log.error("function nx in");
+    c ^= CHANGE_COLOR;
     F = 0;
     d(b);
     for (var x = 0; x < 8; ++x) for (var y = 0; y < 8; ++y) if (ge(b, x, y) == 6 && sa(b, x, y, c)) {
         var kx = x;
         var ky = y;
     }
-    var m = fi(b, c ^ 192);
+    var m = fi(b, c ^ CHANGE_COLOR);
     var ic = 0;
     for (var i = 0; i < m.length; ++i) if (m[i].X == kx && m[i].Y == ky) ic = 1;
     var m = fi(b, c);
@@ -796,7 +966,7 @@ function nx(redraw) {
             var kx = x;
             var ky = y;
         }
-        var om = fi(b, c ^ 192);
+        var om = fi(b, c ^ CHANGE_COLOR);
         un(u, b);
         var hm = 0;
         for (var j = 0; j < om.length; ++j) if (om[j].X == kx && om[j].Y == ky) hm = 1;
@@ -828,9 +998,12 @@ function nx(redraw) {
     
     if (!redraw)
     {
-    	if ((cpw && c == 64) || (cpb && c == 128)) {
+    	if ((engineplaywhite && cpw && c == WHITE_FIG) || (  engineplayblack && cpb && c == BLACK_FIG)) {
         	F = 2;
-        	setTimeout("cpu(!last)", 1300);
+        	setTimeout("cpu(!last)", 1300);        	
     	}
     }
+
+	    
+    Mojo.Log.error("function nx out");
 }
