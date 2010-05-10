@@ -9,8 +9,8 @@ var fenstring;
 var setTimeValue=1000;
 var loopTimer;
 var last;
-var engineplaywhite;
-var engineplayblack;
+var engineplaywhite=false;
+var engineplayblack=false;
 
 var WHITE_FIG=64;
 var BLACK_FIG=128;
@@ -207,13 +207,12 @@ GameAssistant.prototype.selectorChanged = function (event) {
 GameAssistant.prototype.whitetogglePressed = function (event) { //Display the value of the toggle
     if (event.value=="1")
     {
-    	Mojo.Log.error("xxx");
+    	
     	engineplaywhite=true;
         pw(event.value);
     }
     else
     {
-    	Mojo.Log.error("zzz");
     	engineplaywhite=false;
     }
     
@@ -221,8 +220,8 @@ GameAssistant.prototype.whitetogglePressed = function (event) { //Display the va
 GameAssistant.prototype.blacktogglePressed = function (event) { //Display the value of the toggle
     if (event.value=="1")
     {
-    	pb(event.value);
     	engineplayblack=true;
+    	pb(event.value);    	
     }
     else
     {
@@ -231,8 +230,7 @@ GameAssistant.prototype.blacktogglePressed = function (event) { //Display the va
 };
 
 GameAssistant.prototype.backbutton = function (event) {
-    Mojo.Log.error("sback1");
-    Mojo.Log.error("wback2");	
+    Mojo.Log.error("back");
     
     this.tModel.value=this.fModel.falseValue;
     this.fModel.value=this.fModel.falseValue;
@@ -516,12 +514,16 @@ function smfen(b,c,mymoves) {
 		}	
 		if (y!=7) K += "/";
 	}
-	if (c==1)
+
+	Mojo.Log.error("c=%d WHITE_FIG=%d ",c,WHITE_FIG);	
+	if (c==WHITE_FIG)
 	{
+		Mojo.Log.error(" w ");	
 		K += " w ";
 	}
 	else
 	{
+		Mojo.Log.error(" b ");	
 		K += " b ";
 	}
 	
@@ -812,7 +814,7 @@ function cpu(white) {
 	{
 	    // ma(b, bm);
 	    running=1;
-  		fenstring=smfen(b,!di(c),mymoves)
+  		fenstring=smfen(b,c,mymoves)
 		//plugin_status();
 		
 		setTimeout("plugin_calculate()",0);								
@@ -822,47 +824,39 @@ function cpu(white) {
 	Mojo.Log.error("function cpu out");
     
 }
-cpw = 0;
-cpb = 1;
 
 // playwhite
 function pw(e) {
 	Mojo.Log.error("function pw in");
+    Mojo.Log.error("pw engineplaywhite %d c=%d  F=%d",engineplaywhite,c,F);
+    Mojo.Log.error("pb engineplayblack %d c=%d  F=%d",engineplayblack,c,F);   
     
-    cpw = e;
-    if (F < 2 && cpw && c == WHITE_FIG) {
+    if (F < 2 && c == WHITE_FIG && engineplaywhite) {
         F = 2;
         setTimeout("cpu(true)", 800);
 		
     }
-    
+   
     Mojo.Log.error("function pw out");
     
     
-//    if (cpw && cpb) {
-//        setTimeout("cpu()", 100);
-//    }
-	
 }
 
 // playback
 function pb(e) {
-    cpb = e;
     
     Mojo.Log.error("function pb in");
-    
-    
-    if (F < 2 && cpb && c == BLACK_FIG) {
+    Mojo.Log.error("pw engineplaywhite %d c=%d  F=%d",engineplaywhite,c,F);
+    Mojo.Log.error("pb engineplayblack %d c=%d  F=%d",engineplayblack,c,F);   
+        
+    if (F < 2 && c == BLACK_FIG && engineplayblack) {
         F = 2;
+             
         setTimeout("cpu(false)", 800);
     }
     
     Mojo.Log.error("function pb out");
     
-//    if (cpw && cpb) {
-//        setTimeout("cpu()", 100);
-//    }
-	
 }
 function l(update) {
     Mojo.Log.error("function l in");
@@ -998,7 +992,9 @@ function nx(redraw) {
     
     if (!redraw)
     {
-    	if ((engineplaywhite && cpw && c == WHITE_FIG) || (  engineplayblack && cpb && c == BLACK_FIG)) {
+    	Mojo.Log.error("nx engineplaywhite %d c=%d ",engineplaywhite,c);
+    	Mojo.Log.error("nx engineplayblack %d c=%d ",engineplayblack,c);
+    	if ((engineplaywhite && c == WHITE_FIG) || (  engineplayblack && c == BLACK_FIG)) {
         	F = 2;
         	setTimeout("cpu(!last)", 1300);        	
     	}
