@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 #include <cstring>
 
 #include "history.h"
-
+#include "bitcount.h" 
 
 ////
 //// Functions
@@ -42,6 +42,7 @@ History::History() { clear(); }
 
 void History::clear() {
   memset(history, 0, 2 * 8 * 64 * sizeof(int));
+  memset(maxStaticValueDelta, 0, 2 * 8 * 64 * sizeof(int));
 }
 
 
@@ -52,8 +53,8 @@ void History::clear() {
 
 void History::success(Piece p, Square to, Depth d) {
 
-  assert(piece_is_ok(p));
-  assert(square_is_ok(to));
+  ASSERT(piece_is_ok(p));
+  ASSERT(square_is_ok(to));
 
   history[p][to] += int(d) * int(d);
 
@@ -61,7 +62,7 @@ void History::success(Piece p, Square to, Depth d) {
   if (history[p][to] >= HistoryMax)
       for (int i = 0; i < 16; i++)
           for (int j = 0; j < 64; j++)
-              history[i][j] /= 4;
+              history[i][j] /= 2;
 }
 
 
@@ -71,12 +72,16 @@ void History::success(Piece p, Square to, Depth d) {
 
 void History::failure(Piece p, Square to, Depth d) {
 
-  assert(piece_is_ok(p));
-  assert(square_is_ok(to));
+  ASSERT(piece_is_ok(p));
+  ASSERT(square_is_ok(to));
 
   history[p][to] -= int(d) * int(d);
-  if (history[p][to] < 0)
-      history[p][to] = 0;
+
+  // Prevent history underflow
+  if (history[p][to] <= -HistoryMax)
+      for (int i = 0; i < 16; i++)
+          for (int j = 0; j < 64; j++)
+              history[i][j] /= 2;
 }
 
 
@@ -85,8 +90,26 @@ void History::failure(Piece p, Square to, Depth d) {
 
 int History::move_ordering_score(Piece p, Square to) const {
 
-  assert(piece_is_ok(p));
-  assert(square_is_ok(to));
+  ASSERT(piece_is_ok(p));
+  ASSERT(square_is_ok(to));
 
   return history[p][to];
+}
+
+
+/// History::set_gain() and History::gain() store and retrieve the
+/// gain of a move given the delta of the static position evaluations
+/// before and after the move.
+
+void History::set_gain(Piece p, Square to, Value delta)
+{
+  if (delta >= maxStaticValueDelta[p][to])
+      maxStaticValueDelta[p][to] = delta;
+  else
+      maxStaticValueDelta[p][to]--;
+}
+
+Value History::gain(Piece p, Square to) const
+{
+  return Value(maxStaticValueDelta[p][to]);
 }

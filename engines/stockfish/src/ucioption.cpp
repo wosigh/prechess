@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "misc.h"
 #include "thread.h"
 #include "ucioption.h"
+#include "bitcount.h" 
 
 using std::string;
 
@@ -78,7 +79,7 @@ namespace {
 
     o["Use Search Log"] = Option(false);
     o["Search Log Filename"] = Option("SearchLog.txt");
-    o["Book File"] = Option("book.bin");
+    o["Book File"] = Option("/media/cryptofs/apps/usr/palm/applications/com.vocshopgames.chess/book.bin");
     o["Mobility (Middle Game)"] = Option(100, 0, 200);
     o["Mobility (Endgame)"] = Option(100, 0, 200);
     o["Pawn Structure (Middle Game)"] = Option(100, 0, 200);
@@ -88,26 +89,10 @@ namespace {
     o["Space"] = Option(100, 0, 200);
     o["Aggressiveness"] = Option(100, 0, 200);
     o["Cowardice"] = Option(100, 0, 200);
-    o["King Safety Curve"] = Option("Quadratic", COMBO);
-
-       o["King Safety Curve"].comboValues.push_back("Quadratic");
-       o["King Safety Curve"].comboValues.push_back("Linear");  /*, "From File"*/
-
-    o["King Safety Coefficient"] = Option(40, 1, 100);
-    o["King Safety X Intercept"] = Option(0, 0, 20);
-    o["King Safety Max Slope"] = Option(30, 10, 100);
-    o["King Safety Max Value"] = Option(500, 100, 1000);
-    o["Queen Contact Check Bonus"] = Option(3, 0, 8);
-    o["Queen Check Bonus"] = Option(2, 0, 4);
-    o["Rook Check Bonus"] = Option(1, 0, 4);
-    o["Bishop Check Bonus"] = Option(1, 0, 4);
-    o["Knight Check Bonus"] = Option(1, 0, 4);
-    o["Discovered Check Bonus"] = Option(3, 0, 8);
-    o["Mate Threat Bonus"] = Option(3, 0, 8);
     o["Check Extension (PV nodes)"] = Option(2, 0, 2);
     o["Check Extension (non-PV nodes)"] = Option(1, 0, 2);
-    o["Single Reply Extension (PV nodes)"] = Option(2, 0, 2);
-    o["Single Reply Extension (non-PV nodes)"] = Option(2, 0, 2);
+    o["Single Evasion Extension (PV nodes)"] = Option(2, 0, 2);
+    o["Single Evasion Extension (non-PV nodes)"] = Option(2, 0, 2);
     o["Mate Threat Extension (PV nodes)"] = Option(0, 0, 2);
     o["Mate Threat Extension (non-PV nodes)"] = Option(0, 0, 2);
     o["Pawn Push to 7th Extension (PV nodes)"] = Option(1, 0, 2);
@@ -116,22 +101,21 @@ namespace {
     o["Passed Pawn Extension (non-PV nodes)"] = Option(0, 0, 2);
     o["Pawn Endgame Extension (PV nodes)"] = Option(2, 0, 2);
     o["Pawn Endgame Extension (non-PV nodes)"] = Option(2, 0, 2);
-    o["Full Depth Moves (PV nodes)"] = Option(10, 1, 100);
-    o["Full Depth Moves (non-PV nodes)"] = Option(3, 1, 100);
-    o["Threat Depth"] = Option(5, 0, 100);
-    o["Randomness"] = Option(0, 0, 10);
+    o["Randomness"] = Option(5, 0, 10);  // MEME 0->5
     o["Minimum Split Depth"] = Option(4, 4, 7);
     o["Maximum Number of Threads per Split Point"] = Option(5, 4, 8);
-    o["Threads"] = Option(1, 1, THREAD_MAX);
+    o["Threads"] = Option(1, 1, MAX_THREADS);
     o["Hash"] = Option(32, 4, 8192);
     o["Clear Hash"] = Option(false, BUTTON);
     o["New Game"] = Option(false, BUTTON);
     o["Ponder"] = Option(true);
     o["OwnBook"] = Option(true);
     o["MultiPV"] = Option(1, 1, 500);
-    o["UCI_ShowCurrLine"] = Option(false);
     o["UCI_Chess960"] = Option(false);
     o["UCI_AnalyseMode"] = Option(false);
+
+    // Temporary hack for 1.7.1 to be removed in next release
+    o["Zugzwang detection"] = Option(false);
 
     // Any option should know its name so to be easily printed
     for (Options::iterator it = o.begin(); it != o.end(); ++it)
@@ -198,8 +182,8 @@ void init_uci_options() {
 
   // Set optimal value for parameter "Minimum Split Depth"
   // according to number of available cores.
-  assert(options.find("Threads") != options.end());
-  assert(options.find("Minimum Split Depth") != options.end());
+  options.find("Threads") != options.end();
+  options.find("Minimum Split Depth") != options.end();
 
   Option& thr = options["Threads"];
   Option& msd = options["Minimum Split Depth"];
@@ -336,7 +320,7 @@ void push_button(const string& buttonName) {
 bool button_was_pressed(const string& buttonName) {
 
   if (!get_option_value<bool>(buttonName))
-	  return false;
+      return false;
 
   set_option_value(buttonName, "false");
   return true;

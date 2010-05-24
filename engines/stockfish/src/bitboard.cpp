@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -297,8 +297,8 @@ void init_bitboards() {
 
 #if defined(IS_64BIT) && !defined(USE_BSFQ)
 
-CACHE_LINE_ALIGNMENT
-static const int BitTable[64] = {
+static CACHE_LINE_ALIGNMENT
+const int BitTable[64] = {
   0, 1, 2, 7, 3, 13, 8, 19, 4, 25, 14, 28, 9, 34, 20, 40, 5, 17, 26, 38, 15,
   46, 29, 48, 10, 31, 35, 54, 21, 50, 41, 57, 63, 6, 12, 18, 24, 27, 33, 39,
   16, 37, 45, 47, 30, 53, 49, 56, 62, 11, 23, 32, 36, 44, 52, 55, 61, 22, 43,
@@ -368,27 +368,38 @@ Square pop_1st_bit(Bitboard* bb) {
 
 #endif
 
+// Optimized bitScanReverse32() implementation by Pascal Georges. Note
+// that first bit is 1, this allow to differentiate between 0 and 1.
+static CACHE_LINE_ALIGNMENT
+const char MsbTable[256] = {
+  0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5,
+  5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+  6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7,
+  7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+  7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+  7, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+  8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+  8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+  8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+  8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+  8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8
+};
+
 int bitScanReverse32(uint32_t b)
 {
    int result = 0;
 
-   if (b > 0xFFFF) {
+   if (b > 0xFFFF)
+   {
       b >>= 16;
       result += 16;
    }
-   if (b > 0xFF) {
+   if (b > 0xFF)
+   {
       b >>= 8;
       result += 8;
    }
-   if (b > 0xF) {
-      b >>= 4;
-      result += 4;
-   }
-   if (b > 0x3) {
-      b >>= 2;
-      result += 2;
-   }
-   return result + (b > 0) + (b > 1);
+   return result + MsbTable[b];
 }
 
 namespace {

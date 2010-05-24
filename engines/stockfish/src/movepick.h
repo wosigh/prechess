@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@
 
 #include "depth.h"
 #include "history.h"
-#include "lock.h"
 #include "position.h"
 
 
@@ -50,24 +49,22 @@ class MovePicker {
   MovePicker& operator=(const MovePicker&); // silence a warning under MSVC
 
 public:
-  MovePicker(const Position& p, Move ttm, Depth d, const History& h, SearchStack* ss = NULL);
+  MovePicker(const Position& p, Move ttm, Depth d, const History& h, SearchStack* ss = NULL, Value beta = -VALUE_INFINITE);
   Move get_next_move();
-  Move get_next_move(Lock& lock);
   int number_of_evasions() const;
 
 private:
   void score_captures();
   void score_noncaptures();
-  void score_evasions();
+  void score_evasions_or_checks();
   void go_next_phase();
 
   const Position& pos;
   const History& H;
   MoveStack ttMoves[2], killers[2];
-  bool finished;
-  int phase;
+  int badCaptureThreshold, phase;
   const uint8_t* phasePtr;
-  MoveStack *curMove, *lastMove, *lastBadCapture;
+  MoveStack *curMove, *lastMove, *lastGoodNonCapture, *lastBadCapture;
   Bitboard pinned;
   MoveStack moves[256], badCaptures[64];
 };

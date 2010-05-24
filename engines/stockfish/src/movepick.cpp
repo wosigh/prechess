@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@
 #include "movepick.h"
 #include "search.h"
 #include "value.h"
-
+#include "bitcount.h" 
 
 ////
 //// Local definitions
@@ -71,11 +71,11 @@ namespace {
 /// move ordering is at the current node.
 
 MovePicker::MovePicker(const Position& p, Move ttm, Depth d,
-                       const History& h, SearchStack* ss) : pos(p), H(h) {
+                       const History& h, SearchStack* ss, Value beta) : pos(p), H(h) {
   int searchTT = ttm;
   ttMoves[0].move = ttm;
-  finished = false;
   lastBadCapture = badCaptures;
+  badCaptureThreshold = 0;
 
   pinned = p.pinned_pieces(pos.side_to_move());
 
@@ -91,11 +91,25 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d,
   if (p.is_check())
       phasePtr = EvasionsPhaseTable;
   else if (d > Depth(0))
+  {
+      // Consider sligtly negative captures as good if at low
+      // depth and far from beta.
+      if (ss && ss->eval < beta - PawnValueMidgame && d < 3 * OnePly)
+          badCaptureThreshold = -PawnValueMidgame;
+
       phasePtr = MainSearchPhaseTable;
-  else if (d == Depth(0))
+  } else if (d == Depth(0))
       phasePtr = QsearchWithChecksPhaseTable;
   else
+  {
       phasePtr = QsearchWithoutChecksPhaseTable;
+
+      // Skip TT move if is not a capture or a promotion, this avoids
+      // qsearch tree explosion due to a possible perpetual check or
+      // similar rare cases when TT table is full.
+      if (ttm != MOVE_NONE && !pos.move_is_capture_or_promotion(ttm))
+          searchTT = ttMoves[0].move = MOVE_NONE;
+  }
 
   phasePtr += !searchTT - 1;
   go_next_phase();
@@ -129,7 +143,7 @@ void MovePicker::go_next_phase() {
   case PH_NONCAPTURES:
       lastMove = generate_noncaptures(pos, moves);
       score_noncaptures();
-      sort_moves(moves, lastMove);
+      sort_moves(moves, lastMove, &lastGoodNonCapture);
       return;
 
   case PH_BAD_CAPTURES:
@@ -140,9 +154,9 @@ void MovePicker::go_next_phase() {
       return;
 
   case PH_EVASIONS:
-      assert(pos.is_check());
+      ASSERT(pos.is_check());
       lastMove = generate_evasions(pos, moves);
-      score_evasions();
+      score_evasions_or_checks();
       return;
 
   case PH_QCAPTURES:
@@ -151,16 +165,16 @@ void MovePicker::go_next_phase() {
       return;
 
   case PH_QCHECKS:
-      // Perhaps we should order moves move here?  FIXME
       lastMove = generate_non_capture_checks(pos, moves);
+      score_evasions_or_checks();
       return;
 
   case PH_STOP:
-      lastMove = curMove + 1; // hack to be friendly for get_next_move()
+      lastMove = curMove + 1; // Avoids another go_next_phase() call
       return;
 
   default:
-      assert(false);
+      ASSERT(false);
       return;
   }
 }
@@ -216,16 +230,16 @@ void MovePicker::score_noncaptures() {
       piece = pos.piece_on(from);
       hs = H.move_ordering_score(piece, to);
 
-      // Ensure history is always preferred to pst
+      // Ensure history has always highest priority
       if (hs > 0)
-          hs += 1000;
+          hs += 10000;
 
-      // pst based scoring
-      cur->score = hs + mg_value(pos.pst_delta(piece, from, to));
+      // Gain table based scoring
+      cur->score = hs + 16 * H.gain(piece, to);
   }
 }
 
-void MovePicker::score_evasions() {
+void MovePicker::score_evasions_or_checks() {
   // Try good captures ordered by MVV/LVA, then non-captures if
   // destination square is not under attack, ordered by history
   // value, and at the end bad-captures and non-captures with a
@@ -233,11 +247,15 @@ void MovePicker::score_evasions() {
   Move m;
   int seeScore;
 
+  // Skip if we don't have at least two moves to order
+  if (lastMove < moves + 2)
+      return;
+
   for (MoveStack* cur = moves; cur != lastMove; cur++)
   {
       m = cur->move;
       if ((seeScore = pos.see_sign(m)) < 0)
-          cur->score = seeScore;
+          cur->score = seeScore - HistoryMax; // Be sure are at the bottom
       else if (pos.move_is_capture(m))
           cur->score =  pos.midgame_value_of_piece_on(move_to(m))
                       - pos.type_of_piece_on(move_from(m)) + HistoryMax;
@@ -251,6 +269,8 @@ void MovePicker::score_evasions() {
 /// are no more moves left.
 /// It picks the move with the biggest score from a list of generated moves taking
 /// care not to return the tt move if has already been searched previously.
+/// Note that this function is not thread safe so should be lock protected by
+/// caller when accessed through a shared MovePicker object.
 
 Move MovePicker::get_next_move() {
 
@@ -277,12 +297,12 @@ Move MovePicker::get_next_move() {
               {
                   // Check for a non negative SEE now
                   int seeValue = pos.see_sign(move);
-                  if (seeValue >= 0)
+                  if (seeValue >= badCaptureThreshold)
                       return move;
 
                   // Losing capture, move it to the badCaptures[] array, note
                   // that move has now been already checked for legality.
-                  assert(int(lastBadCapture - badCaptures) < 63);
+                  ASSERT(int(lastBadCapture - badCaptures) < 63);
                   lastBadCapture->move = move;
                   lastBadCapture->score = seeValue;
                   lastBadCapture++;
@@ -300,6 +320,11 @@ Move MovePicker::get_next_move() {
               break;
 
           case PH_NONCAPTURES:
+
+              // Sort negative scored moves only when we get there
+              if (curMove == lastGoodNonCapture)
+                  insertion_sort(lastGoodNonCapture, lastMove);
+
               move = (curMove++)->move;
               if (   move != ttMoves[0].move
                   && move != ttMoves[1].move
@@ -332,7 +357,7 @@ Move MovePicker::get_next_move() {
               return MOVE_NONE;
 
           default:
-              assert(false);
+              ASSERT(false);
               break;
           }
       }
@@ -340,21 +365,3 @@ Move MovePicker::get_next_move() {
   }
 }
 
-/// A variant of get_next_move() which takes a lock as a parameter, used to
-/// prevent multiple threads from picking the same move at a split point.
-
-Move MovePicker::get_next_move(Lock &lock) {
-
-   lock_grab(&lock);
-   if (finished)
-   {
-       lock_release(&lock);
-       return MOVE_NONE;
-   }
-   Move m = get_next_move();
-   if (m == MOVE_NONE)
-       finished = true;
-
-   lock_release(&lock);
-   return m;
-}

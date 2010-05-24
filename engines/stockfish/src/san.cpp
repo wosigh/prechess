@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include <iomanip>
 #include <string>
 #include <sstream>
+#include "bitcount.h" 
 
 #include "history.h"
 #include "movepick.h"
@@ -63,10 +64,10 @@ namespace {
 /// that the move is a legal move from the position. The return value is
 /// a string containing the move in short algebraic notation.
 
-const string move_to_san(const Position& pos, Move m) {
+const string move_to_san(Position& pos, Move m) {
 
-  assert(pos.is_ok());
-  assert(move_is_ok(m));
+  ASSERT(pos.is_ok());
+  ASSERT(move_is_ok(m));
 
   Square from, to;
   PieceType pt;
@@ -103,7 +104,7 @@ const string move_to_san(const Position& pos, Move m) {
             san += square_to_string(from);
             break;
           default:
-            assert(false);
+            ASSERT(false);
           }
       }
       if (pos.move_is_capture(m))
@@ -123,10 +124,10 @@ const string move_to_san(const Position& pos, Move m) {
   // Position::move_is_check doesn't detect all checks (not castling moves,
   // promotions and en passant captures).
   StateInfo st;
-  Position p(pos);
-  p.do_move(m, st);
-  if (p.is_check())
-      san += p.is_mate()? "#" : "+";
+  pos.do_move(m, st);
+  if (pos.is_check())
+      san += pos.is_mate() ? "#" : "+";
+  pos.undo_move(m);
 
   return san;
 }
@@ -139,7 +140,7 @@ const string move_to_san(const Position& pos, Move m) {
 
 Move move_from_san(const Position& pos, const string& movestr) {
 
-  assert(pos.is_ok());
+  ASSERT(pos.is_ok());
 
   MovePicker mp = MovePicker(pos, MOVE_NONE, OnePly, H);
   Bitboard pinned = pos.pinned_pieces(pos.side_to_move());

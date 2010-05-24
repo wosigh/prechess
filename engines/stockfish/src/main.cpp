@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,10 +31,24 @@
 #include "bitcount.h"
 #include "misc.h"
 #include "uci.h"
+#include "sys/shm.h"
+#include "syslog.h"
+#include <signal.h>
+#include <string.h>
+
 
 #ifdef USE_CALLGRIND
 #include <valgrind/callgrind.h>
 #endif
+
+int shmidin; 
+int shmidout;
+int shmidheartbeat;
+
+char *shmin=0;
+char *shmout=0;
+char *shmheartbeat=0;
+int  ppid=0;
 
 using namespace std;
 
@@ -43,14 +57,78 @@ using namespace std;
 //// Functions
 ////
 
+void signalhandler(int sig)
+{
+	syslog(LOG_WARNING, "stockfish SIGABORT \n");
+}
+
 int main(int argc, char *argv[]) {
+
+	ppid=getppid();
+  syslog(LOG_WARNING, "--- stockfish::ppid() %d\n",ppid);
+	
+	signal(SIGABRT,signalhandler);
+
+	shmidin  = shmget(ppid*10+1, 128, 0666 | IPC_CREAT );
+	shmidout = shmget(ppid*10, 128, 0666 | IPC_CREAT  );
+	shmidheartbeat = shmget(ppid*10+20, 128, 0666 | IPC_CREAT );
+	
+	
+	if (shmidin!=-1)
+	{
+		shmin = (char *) shmat( shmidin, NULL, 0666 | IPC_CREAT );
+	}
+	else
+	{
+		syslog(LOG_WARNING, "--- stockfish::shmidin() \n");
+	
+		return(0);
+	}
+	
+	if (shmidout!=-1)
+	{
+		syslog(LOG_WARNING, "--- stockfish::shmidout() \n");
+	
+		shmout = (char *) shmat( shmidout, NULL, 0666 | IPC_CREAT );
+	}
+	else
+	{
+		return(0);
+	}
+	
+	if (shmidheartbeat!=-1)
+	{
+		syslog(LOG_WARNING, "--- stockfish::shmidheartbeat() \n");
+	
+		shmheartbeat = (char *) shmat( shmidheartbeat, NULL, 0666 | IPC_CREAT );
+	}
+	else
+	{
+		return(0);
+	}
+	
+	if (shmout==0 || shmin==0 || shmheartbeat==0) 
+	{
+			return(0);
+  }
   
+  	memset(shmin,0,128);
+	memset(shmout,0,128);
+	memset(shmheartbeat,0,128);
+  
+	syslog(LOG_WARNING, "--- stockfish::before initialize() \n");
+	
+
+	
   // Disable IO buffering
   cout.rdbuf()->pubsetbuf(NULL, 0);
   cin.rdbuf()->pubsetbuf(NULL, 0);
 
   // Initialization through global resources manager
   Application::initialize();
+
+	syslog(LOG_WARNING, "--- stockfish::after initialize() \n");
+
 
 #ifdef USE_CALLGRIND
   CALLGRIND_START_INSTRUMENTATION;

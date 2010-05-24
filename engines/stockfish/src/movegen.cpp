@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -69,8 +69,8 @@ namespace {
   template<PieceType Piece, MoveType Type>
   inline MoveStack* generate_piece_moves(const Position& p, MoveStack* m, Color us, Bitboard t) {
 
-    assert(Piece == PAWN);
-    assert(Type == CAPTURE || Type == NON_CAPTURE || Type == EVASION);
+    ASSERT(Piece == PAWN);
+    ASSERT(Type == CAPTURE || Type == NON_CAPTURE || Type == EVASION);
 
     return (us == WHITE ? generate_pawn_moves<WHITE, Type>(p, m, t, SQ_NONE)
                         : generate_pawn_moves<BLACK, Type>(p, m, t, SQ_NONE));
@@ -103,8 +103,8 @@ namespace {
 
 MoveStack* generate_captures(const Position& pos, MoveStack* mlist) {
 
-  assert(pos.is_ok());
-  assert(!pos.is_check());
+  ASSERT(pos.is_ok());
+  ASSERT(!pos.is_check());
 
   Color us = pos.side_to_move();
   Bitboard target = pos.pieces_of_color(opposite_color(us));
@@ -123,8 +123,8 @@ MoveStack* generate_captures(const Position& pos, MoveStack* mlist) {
 
 MoveStack* generate_noncaptures(const Position& pos, MoveStack* mlist) {
 
-  assert(pos.is_ok());
-  assert(!pos.is_check());
+  ASSERT(pos.is_ok());
+  ASSERT(!pos.is_check());
 
   Color us = pos.side_to_move();
   Bitboard target = pos.empty_squares();
@@ -145,15 +145,15 @@ MoveStack* generate_noncaptures(const Position& pos, MoveStack* mlist) {
 
 MoveStack* generate_non_capture_checks(const Position& pos, MoveStack* mlist) {
 
-  assert(pos.is_ok());
-  assert(!pos.is_check());
+  ASSERT(pos.is_ok());
+  ASSERT(!pos.is_check());
 
   Bitboard b, dc;
   Square from;
   Color us = pos.side_to_move();
   Square ksq = pos.king_square(opposite_color(us));
 
-  assert(pos.piece_on(ksq) == piece_of_color_and_type(opposite_color(us), KING));
+  ASSERT(pos.piece_on(ksq) == piece_of_color_and_type(opposite_color(us), KING));
 
   // Discovered non-capture checks
   b = dc = pos.discovered_check_candidates(us);
@@ -168,7 +168,7 @@ MoveStack* generate_non_capture_checks(const Position& pos, MoveStack* mlist) {
       case BISHOP: mlist = generate_discovered_checks<BISHOP>(pos, mlist, from); break;
       case ROOK:   mlist = generate_discovered_checks<ROOK>(pos, mlist, from);   break;
       case KING:   mlist = generate_discovered_checks<KING>(pos, mlist, from);   break;
-      default: assert(false); break;
+      default: ASSERT(false); break;
      }
   }
 
@@ -186,8 +186,8 @@ MoveStack* generate_non_capture_checks(const Position& pos, MoveStack* mlist) {
 
 MoveStack* generate_evasions(const Position& pos, MoveStack* mlist) {
 
-  assert(pos.is_ok());
-  assert(pos.is_check());
+  ASSERT(pos.is_ok());
+  ASSERT(pos.is_check());
 
   Bitboard b, target;
   Square from, checksq;
@@ -197,8 +197,8 @@ MoveStack* generate_evasions(const Position& pos, MoveStack* mlist) {
   Bitboard checkers = pos.checkers();
   Bitboard sliderAttacks = EmptyBoardBB;
 
-  assert(pos.piece_on(ksq) == piece_of_color_and_type(us, KING));
-  assert(checkers);
+  ASSERT(pos.piece_on(ksq) == piece_of_color_and_type(us, KING));
+  ASSERT(checkers);
 
   // Find squares attacked by slider checkers, we will remove
   // them from the king evasions set so to early skip known
@@ -209,7 +209,7 @@ MoveStack* generate_evasions(const Position& pos, MoveStack* mlist) {
       checkersCnt++;
       checksq = pop_1st_bit(&b);
 
-      assert(pos.color_of_piece_on(checksq) == opposite_color(us));
+      ASSERT(pos.color_of_piece_on(checksq) == opposite_color(us));
 
       switch (pos.type_of_piece_on(checksq))
       {
@@ -254,7 +254,7 @@ MoveStack* generate_evasions(const Position& pos, MoveStack* mlist) {
 
 MoveStack* generate_moves(const Position& pos, MoveStack* mlist, bool pseudoLegal) {
 
-  assert(pos.is_ok());
+  ASSERT(pos.is_ok());
 
   MoveStack *last, *cur = mlist;
   Bitboard pinned = pos.pinned_pieces(pos.side_to_move());
@@ -301,9 +301,9 @@ bool move_is_legal(const Position& pos, const Move m) {
 
 bool move_is_legal(const Position& pos, const Move m, Bitboard pinned) {
 
-  assert(pos.is_ok());
-  assert(move_is_ok(m));
-  assert(pinned == pos.pinned_pieces(pos.side_to_move()));
+  ASSERT(pos.is_ok());
+  ASSERT(move_is_ok(m));
+  ASSERT(pinned == pos.pinned_pieces(pos.side_to_move()));
 
   Color us = pos.side_to_move();
   Color them = opposite_color(us);
@@ -579,8 +579,8 @@ namespace {
     // En passant captures
     if ((Type == CAPTURE || Type == EVASION) && pos.ep_square() != SQ_NONE)
     {
-        assert(Us != WHITE || square_rank(pos.ep_square()) == RANK_6);
-        assert(Us != BLACK || square_rank(pos.ep_square()) == RANK_3);
+        ASSERT(Us != WHITE || square_rank(pos.ep_square()) == RANK_6);
+        ASSERT(Us != BLACK || square_rank(pos.ep_square()) == RANK_3);
 
         // An en passant capture can be an evasion only if the checking piece
         // is the double pushed pawn and so is in the target. Otherwise this
@@ -590,7 +590,7 @@ namespace {
 
         b1 = pawns & pos.attacks_from<PAWN>(pos.ep_square(), Them);
 
-        assert(b1 != EmptyBoardBB);
+        ASSERT(b1 != EmptyBoardBB);
 
         while (b1)
         {
@@ -604,7 +604,7 @@ namespace {
   template<PieceType Piece>
   MoveStack* generate_discovered_checks(const Position& pos, MoveStack* mlist, Square from) {
 
-    assert(Piece != QUEEN);
+    ASSERT(Piece != QUEEN);
 
     Bitboard b = pos.attacks_from<Piece>(from) & pos.empty_squares();
     if (Piece == KING)
@@ -619,7 +619,7 @@ namespace {
   template<PieceType Piece>
   MoveStack* generate_direct_checks(const Position& pos, MoveStack* mlist, Color us,
                                    Bitboard dc, Square ksq) {
-    assert(Piece != KING);
+    ASSERT(Piece != KING);
 
     Bitboard checkSqs, b;
     Square from;
@@ -659,7 +659,7 @@ namespace {
         Color them = opposite_color(us);
         Square ksq = pos.king_square(us);
 
-        assert(pos.piece_on(ksq) == piece_of_color_and_type(us, KING));
+        ASSERT(pos.piece_on(ksq) == piece_of_color_and_type(us, KING));
 
         Square rsq = (Side == KING_SIDE ? pos.initial_kr_square(us) : pos.initial_qr_square(us));
         Square s1 = relative_square(us, Side == KING_SIDE ? SQ_G1 : SQ_C1);
@@ -667,7 +667,7 @@ namespace {
         Square s;
         bool illegal = false;
 
-        assert(pos.piece_on(rsq) == piece_of_color_and_type(us, ROOK));
+        ASSERT(pos.piece_on(rsq) == piece_of_color_and_type(us, ROOK));
 
         // It is a bit complicated to correctly handle Chess960
         for (s = Min(ksq, s1); s <= Max(ksq, s1); s++)

@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 #include "bitboard.h"
 #include "move.h"
 #include "square.h"
-
+#include "bitcount.h" 
 
 ////
 //// Local definitions
@@ -89,7 +89,7 @@ void generate_kpk_bitbase(uint8_t bitbase[]) {
   int i, j, b;
   for(i = 0; i < 24576; i++) {
     for(b = 0, j = 0; j < 8; b |= (compress_result(Bitbase[8*i+j]) << j), j++);
-    assert(b == int(uint8_t(b)));
+    ASSERT(b == int(uint8_t(b)));
     bitbase[i] = (uint8_t)b;
   }
 
@@ -250,7 +250,7 @@ namespace {
         break;
 
       default:
-        assert(false);
+        ASSERT(false);
       }
     }
 
@@ -270,7 +270,7 @@ namespace {
         break;
 
       default:
-        assert(false);
+        ASSERT(false);
       }
 
       if(square_rank(s) == RANK_3 &&
@@ -289,7 +289,7 @@ namespace {
           break;
 
         default:
-          assert(false);
+          ASSERT(false);
         }
       }
     }
@@ -327,7 +327,7 @@ namespace {
         break;
 
       default:
-        assert(false);
+        ASSERT(false);
       }
     }
 
@@ -338,7 +338,7 @@ namespace {
   int compute_index(Square wksq, Square bksq, Square psq, Color stm) {
     int p = int(square_file(psq)) + (int(square_rank(psq)) - 1) * 4;
     int result = int(stm) + 2*int(bksq) + 128*int(wksq) + 8192*p;
-    assert(result >= 0 && result < IndexMax);
+    ASSERT(result >= 0 && result < IndexMax);
     return result;
   }
 

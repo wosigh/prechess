@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -86,10 +86,10 @@ inline void insertion_sort(T* firstMove, T* lastMove)
         }
 }
 
-// Our dedicated sort in range [firstMove, lastMove), it is well
-// tuned for non-captures where we have a lot of zero scored moves.
+// Our dedicated sort in range [firstMove, lastMove), first splits
+// positive scores from ramining then order seaprately the two sets.
 template<typename T>
-inline void sort_moves(T* firstMove, T* lastMove)
+inline void sort_moves(T* firstMove, T* lastMove, T** lastPositive)
 {
     T tmp;
     T *p, *d;
@@ -114,29 +114,9 @@ inline void sort_moves(T* firstMove, T* lastMove)
 
     } while (p != d);
 
-    // Sort positives
+    // Sort just positive scored moves, remaining only when we get there
     insertion_sort<T>(firstMove, p);
-
-    d = lastMove;
-    p--;
-
-    // Split zero vs negatives
-    do {
-        while ((++p)->score == 0);
-
-        if (p != d)
-        {
-            while (--d != p && d->score < 0);
-
-            tmp = *p;
-            *p = *d;
-            *d = tmp;
-        }
-
-    } while (p != d);
-
-    // Sort negatives
-    insertion_sort<T>(p, lastMove);
+    *lastPositive = p;
 }
 
 // Picks up the best move in range [curMove, lastMove), one per cycle.

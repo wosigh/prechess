@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -146,9 +146,9 @@ public:
   };
 
   // Constructors
-  Position() {}
-  Position(const Position& pos);
-  Position(const std::string& fen);
+  Position();
+  explicit Position(const Position& pos);
+  explicit Position(const std::string& fen);
 
   // Text input/output
   void from_fen(const std::string& fen);
@@ -156,7 +156,6 @@ public:
   void print(Move m = MOVE_NONE) const;
 
   // Copying
-  void copy(const Position& pos);
   void flipped_copy(const Position& pos);
 
   // The piece on a given square
@@ -224,6 +223,9 @@ public:
   bool move_is_passed_pawn_push(Move m) const;
   bool move_attacks_square(Move m, Square s) const;
 
+  // Piece captured with previous moves
+  PieceType captured_piece() const;
+
   // Information about pawns
   bool pawn_is_passed(Color c, Square s) const;
   static bool pawn_is_passed(Bitboard theirPawns, Color c, Square s);
@@ -234,7 +236,7 @@ public:
   bool square_is_weak(Square s, Color c) const;
 
   // Doing and undoing moves
-  void saveState();
+  void detach();
   void do_move(Move m, StateInfo& st);
   void do_move(Move m, StateInfo& st, const CheckInfo& ci, bool moveIsCheck);
   void undo_move(Move m);
@@ -326,12 +328,12 @@ private:
   Color sideToMove;
   int gamePly;
   Key history[MaxGameLength];
+  int castleRightsMask[64];
   File initialKFile, initialKRFile, initialQRFile;
   StateInfo startState;
   StateInfo* st;
 
   // Static variables
-  static int castleRightsMask[64];
   static Key zobrist[2][8][64];
   static Key zobEp[64];
   static Key zobCastle[16];
@@ -565,6 +567,10 @@ inline bool Position::move_is_capture_or_promotion(Move m) const {
 
   // Move must not be MOVE_NONE !
   return (m & (0x1F << 12)) ? !move_is_castle(m) : !square_is_empty(move_to(m));
+}
+
+inline PieceType Position::captured_piece() const {
+  return st->capture;
 }
 
 #endif // !defined(POSITION_H_INCLUDED)

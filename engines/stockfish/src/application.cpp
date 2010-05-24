@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -49,6 +49,7 @@ Application::Application() {
     Position::init_piece_square_tables();
     init_eval(1);
     init_bitbases();
+    init_search();
     init_threads();
 
     // Make random number generation less deterministic, for book moves
@@ -58,7 +59,7 @@ Application::Application() {
 
 Application::~Application() {
 
-  stop_threads();
+  exit_threads();
   quit_eval();
 }
 

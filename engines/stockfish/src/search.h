@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 
 #include "depth.h"
 #include "move.h"
+#include "value.h"
 
 
 ////
@@ -46,6 +47,7 @@ const int KILLER_MAX = 2;
 /// from nodes shallower and deeper in the tree during the search.  Each
 /// search thread has its own array of SearchStack objects, indexed by the
 /// current ply.
+struct EvalInfo;
 
 struct SearchStack {
   Move pv[PLY_MAX_PLUS_2];
@@ -54,6 +56,7 @@ struct SearchStack {
   Move threatMove;
   Move killers[KILLER_MAX];
   Depth reduction;
+  Value eval;
 
   void init(int ply);
   void initKillers();
@@ -64,8 +67,9 @@ struct SearchStack {
 //// Prototypes
 ////
 
+extern void init_search();
 extern void init_threads();
-extern void stop_threads();
+extern void exit_threads();
 extern bool think(const Position &pos, bool infinite, bool ponder, int side_to_move,
                   int time[], int increment[], int movesToGo, int maxDepth,
                   int maxNodes, int maxTime, Move searchMoves[]);

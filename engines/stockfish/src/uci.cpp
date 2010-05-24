@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -38,6 +38,15 @@
 #include "uci.h"
 #include "ucioption.h"
 #include <syslog.h>
+#include <signal.h>
+#include "bitcount.h" 
+
+#define SYSLOG(a...)
+
+extern char *shmin;
+extern char *shmout;
+extern char *shmheartbeat;
+
 
 using namespace std;
 
@@ -78,23 +87,61 @@ namespace {
 /// by translating EOF to the "quit" command. This ensures that Stockfish
 /// exits gracefully if the GUI dies unexpectedly.
 
+ static long cnt=1000000;
+
+
 void uci_main_loop() {
 
+  extern int ppid;
   RootPosition.from_fen(StartPosition);
   string command;
+  static char c=0;
+  static char lastheartbeat;
+  
+  
+  bool loop=true;
+  static bool first=true;
+  static bool firstppid;
+  static long cnt;
+  
+  while (loop)
+  {	  
+		// heartbeat from polyglot
+		
+		if (cnt==3000000)
+		{
+			shmheartbeat[0]=1;
+		}
+	
 
-  do {	  
-      // Wait for a command from stdin
-	  //syslog(LOG_WARNING, "--- stockfish in wait --- \n");        
-      if (!getline(cin, command))
-	  {
-         command = "quit"; 
-	  }
-	  else
-	  {	
+		if (cnt--==0) 
+		{
+			if (shmheartbeat[0]==1)
+			{
+				break;
+			}
+			else
+			{
+				cnt=3000000;
+				shmheartbeat[0]=1;
+			}
+		}
+		
+		// heartbeat from engine
+			
+		if (shmheartbeat[1]==1) shmheartbeat[1]=0;
+	
+	  	  
+  		if (shmin[0]!=0)
+  		{		
+  			command = shmin;
+  			shmin[0]=0;  			
+  			loop=handle_command(command);
+  			
+ 		}
+  };
+  SYSLOG(LOG_WARNING, "--- stockfish exit-- %d %d \n",loop,alarm);      
 
-	  }
-  } while (handle_command(command));
 }
 
 
@@ -111,7 +158,8 @@ namespace {
 
   bool handle_command(const string& command) {
 
-	syslog(LOG_WARNING, "--- stockfish in handle --- %c%c%c%c\n",command.c_str()[0],command.c_str()[1],command.c_str()[2],command.c_str()[3]);      
+  	
+	SYSLOG(LOG_WARNING, "--- stockfish in handle --- %s\n",command.c_str());
 
     UCIInputParser uip(command);
     string token;
@@ -119,7 +167,6 @@ namespace {
     if (!(uip >> token)) // operator>>() skips any whitespace
         return true;
 
-		
     if (token == "quit")
         return false;
 
@@ -140,7 +187,10 @@ namespace {
         RootPosition.from_fen(StartPosition);
     }
     else if (token == "isready")
-        cout << "readyok" << endl;
+    {
+        // cout << "readyok" << endl;
+        sprintf(shmout,"readyok\n");
+    }
     else if (token == "position")
         set_position(uip);
     else if (token == "setoption")
@@ -172,7 +222,6 @@ namespace {
     else
         cout << "Unknown command: " << command << endl;
 
-	
     return true;
   }
 
@@ -221,7 +270,7 @@ namespace {
             }
             // Our StateInfo st is about going out of scope so copy
             // its content inside RootPosition before they disappear.
-            RootPosition.saveState();
+            RootPosition.detach();
         }
     }
   }
@@ -309,7 +358,7 @@ namespace {
         }
     }
 
-    assert(RootPosition.is_ok());
+    ASSERT(RootPosition.is_ok());
 
     return think(RootPosition, infinite, ponder, RootPosition.side_to_move(),
                  time, inc, movesToGo, depth, nodes, moveTime, searchMoves);
@@ -319,7 +368,7 @@ namespace {
 
     string token;
     int depth, tm, n;
-    Position pos = RootPosition;
+    Position pos(RootPosition);
 
     if (!(uip >> depth))
         return;
@@ -329,8 +378,10 @@ namespace {
     n = perft(pos, depth * OnePly);
 
     tm = get_system_time() - tm;
+#ifdef SHOWINFO
     std::cout << "\nNodes " << n
               << "\nTime (ms) " << tm
               << "\nNodes/second " << (int)(n/(tm/1000.0)) << std::endl;
+#endif
   }
 }

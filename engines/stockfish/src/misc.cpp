@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,6 +27,9 @@
 #  include <sys/time.h>
 #  include <sys/types.h>
 #  include <unistd.h>
+#  if defined(__hpux)
+#     include <sys/pstat.h>
+#  endif
 
 #else
 
@@ -44,14 +47,14 @@
 
 #include "bitcount.h"
 #include "misc.h"
-#include <syslog.h>
+#include "thread.h"
 
 using namespace std;
 
 /// Version number. If this is left empty, the current date (in the format
 /// YYMMDD) is used as a version number.
 
-static const string EngineVersion = "1.6.3";
+static const string EngineVersion = "1.7.1";
 static const string AppName = "Stockfish";
 static const string AppTag  = "";
 
@@ -75,7 +78,7 @@ bool dbg_show_hit_rate = false;
 
 void dbg_hit_on(bool b) {
 
-    assert(!dbg_show_mean);
+    ASSERT(!dbg_show_mean);
     dbg_show_hit_rate = true;
     dbg_cnt0++;
     if (b)
@@ -90,21 +93,21 @@ void dbg_hit_on_c(bool c, bool b) {
 
 void dbg_before() {
 
-    assert(!dbg_show_mean);
+    ASSERT(!dbg_show_mean);
     dbg_show_hit_rate = true;
     dbg_cnt0++;
 }
 
 void dbg_after() {
 
-    assert(!dbg_show_mean);
+    ASSERT(!dbg_show_mean);
     dbg_show_hit_rate = true;
     dbg_cnt1++;
 }
 
 void dbg_mean_of(int v) {
 
-    assert(!dbg_show_hit_rate);
+    ASSERT(!dbg_show_hit_rate);
     dbg_show_mean = true;
     dbg_cnt0++;
     dbg_cnt1 += v;
@@ -186,7 +189,15 @@ int get_system_time() {
 
 #  if defined(_SC_NPROCESSORS_ONLN)
 int cpu_count() {
-  return Min(sysconf(_SC_NPROCESSORS_ONLN), 8);
+  return Min(sysconf(_SC_NPROCESSORS_ONLN), MAX_THREADS);
+}
+#  elif defined(__hpux)
+int cpu_count() {
+  struct pst_dynamic psd;
+  if (pstat_getdynamic(&psd, sizeof(psd), (size_t)1, 0) == -1)
+      return 1;
+
+  return Min(psd.psd_proc_cnt, MAX_THREADS);
 }
 #  else
 int cpu_count() {
@@ -199,7 +210,7 @@ int cpu_count() {
 int cpu_count() {
   SYSTEM_INFO s;
   GetSystemInfo(&s);
-  return Min(s.dwNumberOfProcessors, 8);
+  return Min(s.dwNumberOfProcessors, MAX_THREADS);
 }
 
 #endif
@@ -214,19 +225,15 @@ int Bioskey()
 {
   fd_set          readfds;
   struct timeval  timeout;
-  int bioskey;
-  int selectx; 
 
   FD_ZERO(&readfds);
   FD_SET(fileno(stdin), &readfds);
   /* Set to timeout immediately */
   timeout.tv_sec = 0;
   timeout.tv_usec = 0;
-  selectx = select(16, &readfds, 0, 0, &timeout);
-  bioskey = FD_ISSET(fileno(stdin), &readfds);
-  // syslog(LOG_WARNING, "--- stockfish select=%d bioskey=%d --- \n",selectx,bioskey);
-      
-  return (bioskey);
+  select(16, &readfds, 0, 0, &timeout);
+
+  return (FD_ISSET(fileno(stdin), &readfds));
 }
 
 #else

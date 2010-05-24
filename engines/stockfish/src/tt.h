@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -46,8 +46,8 @@
 /// the 32 bits of the data field are so defined
 ///
 /// bit  0-16: move
-/// bit 17-19: not used
-/// bit 20-22: value type
+/// bit 17-18: not used
+/// bit 19-22: value type
 /// bit 23-31: generation
 
 class TTEntry {
@@ -55,14 +55,14 @@ class TTEntry {
 public:
   TTEntry() {}
   TTEntry(uint32_t k, Value v, ValueType t, Depth d, Move m, int generation)
-        : key_ (k), data((m & 0x1FFFF) | (t << 20) | (generation << 23)),
+        : key_ (k), data((m & 0x1FFFF) | (t << 19) | (generation << 23)),
           value_(int16_t(v)), depth_(int16_t(d)) {}
 
   uint32_t key() const { return key_; }
   Depth depth() const { return Depth(depth_); }
   Move move() const { return Move(data & 0x1FFFF); }
   Value value() const { return Value(value_); }
-  ValueType type() const { return ValueType((data >> 20) & 7); }
+  ValueType type() const { return ValueType((data >> 19) & 0xF); }
   int generation() const { return (data >> 23); }
 
 private:

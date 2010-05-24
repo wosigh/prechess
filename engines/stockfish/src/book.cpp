@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #include "book.h"
 #include "mersenne.h"
 #include "movegen.h"
+#include "bitcount.h" 
 
 using namespace std;
 
@@ -390,7 +391,7 @@ void Book::close() {
 /// Book::file_name() returns the file name of the currently active book,
 /// or the empty string if no book is open.
 
-const string Book::file_name() const {
+const string Book::file_name() { // Not const to compile on HP-UX 11.X
 
   return is_open() ? fileName : "";
 }
@@ -417,7 +418,7 @@ Move Book::get_move(const Position& pos) {
 
       int score = entry.count;
 
-      assert(score > 0);
+      ASSERT(score > 0);
 
       // Choose book move according to its score. If a move has a very
       // high score it has more probability to be choosen then a one with
@@ -453,13 +454,13 @@ int Book::find_key(uint64_t key) {
   left = 0;
   right = bookSize - 1;
 
-  assert(left <= right);
+  ASSERT(left <= right);
 
   while (left < right)
   {
       mid = (left + right) / 2;
 
-      assert(mid >= left && mid < right);
+      ASSERT(mid >= left && mid < right);
 
       read_entry(entry, mid);
       if (key <= entry.key)
@@ -468,7 +469,7 @@ int Book::find_key(uint64_t key) {
           left = mid + 1;
   }
 
-  assert(left == right);
+  ASSERT(left == right);
 
   read_entry(entry, left);
   return (entry.key == key)? left : bookSize;
@@ -481,8 +482,8 @@ int Book::find_key(uint64_t key) {
 
 void Book::read_entry(BookEntry& entry, int idx) {
 
-  assert(idx >= 0 && idx < bookSize);
-  assert(is_open());
+  ASSERT(idx >= 0 && idx < bookSize);
+  ASSERT(is_open());
 
   seekg(idx * EntrySize, ios_base::beg);
   *this >> entry;
@@ -530,8 +531,8 @@ namespace {
             Square s = pop_1st_bit(&b);
             Piece p = pos.piece_on(s);
 
-            assert(piece_is_ok(p));
-            assert(color_of_piece(p) == c);
+            ASSERT(piece_is_ok(p));
+            ASSERT(color_of_piece(p) == c);
 
             result ^= book_piece_key(p, s);
         }

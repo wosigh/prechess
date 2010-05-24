@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include <map>
 
 #include "material.h"
+#include "bitcount.h" 
 
 using namespace std;
 
@@ -201,8 +202,8 @@ MaterialInfo* MaterialInfoTable::get_material_info(const Position& pos) {
   {
       // Minor piece endgame with at least one minor piece per side and
       // no pawns. Note that the case KmmK is already handled by KXK.
-      assert((pos.pieces(KNIGHT, WHITE) | pos.pieces(BISHOP, WHITE)));
-      assert((pos.pieces(KNIGHT, BLACK) | pos.pieces(BISHOP, BLACK)));
+      ASSERT((pos.pieces(KNIGHT, WHITE) | pos.pieces(BISHOP, WHITE)));
+      ASSERT((pos.pieces(KNIGHT, BLACK) | pos.pieces(BISHOP, BLACK)));
 
       if (   pos.piece_count(WHITE, BISHOP) + pos.piece_count(WHITE, KNIGHT) <= 2
           && pos.piece_count(BLACK, BISHOP) + pos.piece_count(BLACK, KNIGHT) <= 2)
@@ -258,12 +259,12 @@ MaterialInfo* MaterialInfoTable::get_material_info(const Position& pos) {
   {
       if (pos.piece_count(BLACK, PAWN) == 0)
       {
-          assert(pos.piece_count(WHITE, PAWN) >= 2);
+          ASSERT(pos.piece_count(WHITE, PAWN) >= 2);
           mi->scalingFunction[WHITE] = &ScaleKPsK;
       }
       else if (pos.piece_count(WHITE, PAWN) == 0)
       {
-          assert(pos.piece_count(BLACK, PAWN) >= 2);
+          ASSERT(pos.piece_count(BLACK, PAWN) >= 2);
           mi->scalingFunction[BLACK] = &ScaleKKPs;
       }
       else if (pos.piece_count(WHITE, PAWN) == 1 && pos.piece_count(BLACK, PAWN) == 1)
@@ -387,8 +388,8 @@ EndgameFunctions::~EndgameFunctions() {
 
 Key EndgameFunctions::buildKey(const string& keyCode) {
 
-    assert(keyCode.length() > 0 && keyCode[0] == 'K');
-    assert(keyCode.length() < 8);
+    ASSERT(keyCode.length() > 0 && keyCode[0] == 'K');
+    ASSERT(keyCode.length() < 8);
 
     stringstream s;
     bool upcase = false;

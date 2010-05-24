@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -224,15 +224,19 @@ namespace {
 
   const int AttackWeight[] = { 0, 0, KnightAttackWeight, BishopAttackWeight, RookAttackWeight, QueenAttackWeight };
 
-  // Bonuses for safe checks, initialized from UCI options
-  int QueenContactCheckBonus, DiscoveredCheckBonus;
-  int QueenCheckBonus, RookCheckBonus, BishopCheckBonus, KnightCheckBonus;
+  // Bonuses for safe checks
+  const int QueenContactCheckBonus = 3;
+  const int DiscoveredCheckBonus   = 3;
+  const int QueenCheckBonus        = 2; 
+  const int RookCheckBonus         = 1;
+  const int BishopCheckBonus       = 1; 
+  const int KnightCheckBonus       = 1;
 
   // Scan for queen contact mates?
   const bool QueenContactMates = true;
 
-  // Bonus for having a mate threat, initialized from UCI options
-  int MateThreatBonus;
+  // Bonus for having a mate threat
+  const int MateThreatBonus = 3;
 
   // InitKingDanger[] contains bonuses based on the position of the defending
   // king.
@@ -253,8 +257,8 @@ namespace {
 
   // Pawn and material hash tables, indexed by the current thread id.
   // Note that they will be initialized at 0 being global variables.
-  MaterialInfoTable* MaterialTable[THREAD_MAX];
-  PawnInfoTable* PawnTable[THREAD_MAX];
+  MaterialInfoTable* MaterialTable[MAX_THREADS];
+  PawnInfoTable* PawnTable[MAX_THREADS];
 
   // Sizes of pawn and material hash tables
   const int PawnTableSize = 16384;
@@ -304,9 +308,9 @@ namespace {
 template<bool HasPopCnt>
 Value do_evaluate(const Position& pos, EvalInfo& ei, int threadID) {
 
-  assert(pos.is_ok());
-  assert(threadID >= 0 && threadID < THREAD_MAX);
-  assert(!pos.is_check());
+  ASSERT(pos.is_ok());
+  ASSERT(threadID >= 0 && threadID < MAX_THREADS);
+  ASSERT(!pos.is_check());
 
   memset(&ei, 0, sizeof(EvalInfo));
 
@@ -436,28 +440,13 @@ Value do_evaluate(const Position& pos, EvalInfo& ei, int threadID) {
 
 } // namespace
 
-/// quick_evaluate() does a very approximate evaluation of the current position.
-/// It currently considers only material and piece square table scores. Perhaps
-/// we should add scores from the pawn and material hash tables?
-
-Value quick_evaluate(const Position &pos) {
-
-  assert(pos.is_ok());
-
-  static const ScaleFactor sf[2] = {SCALE_FACTOR_NORMAL, SCALE_FACTOR_NORMAL};
-
-  Value v = scale_by_game_phase(pos.value(), MaterialInfoTable::game_phase(pos), sf);
-  return (pos.side_to_move() == WHITE ? v : -v);
-}
-
-
 /// init_eval() initializes various tables used by the evaluation function
 
 void init_eval(int threads) {
 
-  assert(threads <= THREAD_MAX);
+  ASSERT(threads <= MAX_THREADS);
 
-  for (int i = 0; i < THREAD_MAX; i++)
+  for (int i = 0; i < MAX_THREADS; i++)
   {
     if (i >= threads)
     {
@@ -479,7 +468,7 @@ void init_eval(int threads) {
 
 void quit_eval() {
 
-  for (int i = 0; i < THREAD_MAX; i++)
+  for (int i = 0; i < MAX_THREADS; i++)
   {
       delete PawnTable[i];
       delete MaterialTable[i];
@@ -563,7 +552,7 @@ namespace {
         else if (Piece == ROOK)
             b = rook_attacks_bb(s, pos.occupied_squares() & ~pos.pieces(ROOK, QUEEN, Us));
         else
-            assert(false);
+            ASSERT(false);
 
         // Update attack info
         ei.attackedBy[Us][Piece] |= b;
@@ -875,16 +864,13 @@ namespace {
       // capturing a single attacking piece can therefore result in a score
       // change far bigger than the value of the captured piece.
       Score v = apply_weight(make_score(SafetyTable[attackUnits], 0), WeightKingSafety[Us]);
-
       ei.value -= Sign[Us] * v;
-
-      if (Us == pos.side_to_move())
-          ei.futilityMargin += mg_value(v);
+      ei.futilityMargin[Us] += mg_value(v);
     }
   }
 
 
-  // evaluate_passed_pawns() evaluates the passed pawns of the given color
+  // evaluate_passed_pawns_of_color() evaluates the passed pawns of the given color
 
   template<Color Us>
   void evaluate_passed_pawns_of_color(const Position& pos, int movesToGo[], Square pawnToGo[], EvalInfo& ei) {
@@ -900,8 +886,8 @@ namespace {
     {
         Square s = pop_1st_bit(&b);
 
-        assert(pos.piece_on(s) == piece_of_color_and_type(Us, PAWN));
-        assert(pos.pawn_is_passed(Us, s));
+        ASSERT(pos.piece_on(s) == piece_of_color_and_type(Us, PAWN));
+        ASSERT(pos.pawn_is_passed(Us, s));
 
         int r = int(relative_rank(Us, s) - RANK_2);
         int tr = Max(0, r * (r - 1));
@@ -925,7 +911,7 @@ namespace {
                 // There are no enemy pawns in the pawn's path
                 b2 = squares_in_front_of(Us, s);
 
-                assert((b2 & pos.pieces(PAWN, Them)) == EmptyBoardBB);
+                ASSERT((b2 & pos.pieces(PAWN, Them)) == EmptyBoardBB);
 
                 // Squares attacked by us
                 b4 = b2 & ei.attacked_by(Us);
@@ -1056,7 +1042,7 @@ namespace {
         else if (   !(squares_in_front_of(WHITE, pawnToGo[WHITE]) & pos.occupied_squares())
                  && !(squares_in_front_of(BLACK, pawnToGo[BLACK]) & pos.occupied_squares()))
         {
-            assert(movesToGo[loserSide] - movesToGo[winnerSide] == 1);
+            ASSERT(movesToGo[loserSide] - movesToGo[winnerSide] == 1);
 
             Square winnerQSq = relative_square(winnerSide, make_square(square_file(pawnToGo[winnerSide]), RANK_8));
             Square loserQSq = relative_square(loserSide, make_square(square_file(pawnToGo[loserSide]), RANK_8));
@@ -1080,8 +1066,8 @@ namespace {
 
   void evaluate_trapped_bishop_a7h7(const Position& pos, Square s, Color us, EvalInfo &ei) {
 
-    assert(square_is_ok(s));
-    assert(pos.piece_on(s) == piece_of_color_and_type(us, BISHOP));
+    ASSERT(square_is_ok(s));
+    ASSERT(pos.piece_on(s) == piece_of_color_and_type(us, BISHOP));
 
     Square b6 = relative_square(us, (square_file(s) == FILE_A) ? SQ_B6 : SQ_G6);
     Square b8 = relative_square(us, (square_file(s) == FILE_A) ? SQ_B8 : SQ_G8);
@@ -1105,9 +1091,9 @@ namespace {
     Piece pawn = piece_of_color_and_type(us, PAWN);
     Square b2, b3, c3;
 
-    assert(Chess960);
-    assert(square_is_ok(s));
-    assert(pos.piece_on(s) == piece_of_color_and_type(us, BISHOP));
+    ASSERT(Chess960);
+    ASSERT(square_is_ok(s));
+    ASSERT(pos.piece_on(s) == piece_of_color_and_type(us, BISHOP));
 
     if (square_file(s) == FILE_A)
     {
@@ -1184,9 +1170,9 @@ namespace {
 
   Value scale_by_game_phase(const Score& v, Phase ph, const ScaleFactor sf[]) {
 
-    assert(mg_value(v) > -VALUE_INFINITE && mg_value(v) < VALUE_INFINITE);
-    assert(eg_value(v) > -VALUE_INFINITE && eg_value(v) < VALUE_INFINITE);
-    assert(ph >= PHASE_ENDGAME && ph <= PHASE_MIDGAME);
+    ASSERT(mg_value(v) > -VALUE_INFINITE && mg_value(v) < VALUE_INFINITE);
+    ASSERT(eg_value(v) > -VALUE_INFINITE && eg_value(v) < VALUE_INFINITE);
+    ASSERT(ph >= PHASE_ENDGAME && ph <= PHASE_MIDGAME);
 
     Value ev = apply_scale_factor(eg_value(v), sf[(eg_value(v) > Value(0) ? WHITE : BLACK)]);
 
@@ -1218,29 +1204,17 @@ namespace {
 
   void init_safety() {
 
-    QueenContactCheckBonus = get_option_value_int("Queen Contact Check Bonus");
-    QueenCheckBonus        = get_option_value_int("Queen Check Bonus");
-    RookCheckBonus         = get_option_value_int("Rook Check Bonus");
-    BishopCheckBonus       = get_option_value_int("Bishop Check Bonus");
-    KnightCheckBonus       = get_option_value_int("Knight Check Bonus");
-    DiscoveredCheckBonus   = get_option_value_int("Discovered Check Bonus");
-    MateThreatBonus        = get_option_value_int("Mate Threat Bonus");
-
-    int maxSlope = get_option_value_int("King Safety Max Slope");
-    int peak     = get_option_value_int("King Safety Max Value") * 256 / 100;
-    double a     = get_option_value_int("King Safety Coefficient") / 100.0;
-    double b     = get_option_value_int("King Safety X Intercept");
-    bool quad    = (get_option_value_string("King Safety Curve") == "Quadratic");
-    bool linear  = (get_option_value_string("King Safety Curve") == "Linear");
+    int maxSlope = 30;
+    int peak     = 0x500;
+    double a     = 0.4;
+    double b     = 0.0;
 
     for (int i = 0; i < 100; i++)
     {
         if (i < b)
             SafetyTable[i] = Value(0);
-        else if (quad)
+        else
             SafetyTable[i] = Value((int)(a * (i - b) * (i - b)));
-        else if (linear)
-            SafetyTable[i] = Value((int)(100 * a * (i - b)));
     }
 
     for (int i = 0; i < 100; i++)

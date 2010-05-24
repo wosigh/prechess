@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -46,6 +46,8 @@
 class Position;
 
 struct EvalInfo {
+
+  EvalInfo() { futilityMargin[0] = futilityMargin[1] = Value(0); }
 
   // Middle game and endgame evaluations
   Score value;
@@ -94,8 +96,8 @@ struct EvalInfo {
   Score mobility;
 
   // Extra futility margin. This is added to the standard futility margin
-  // in the quiescence search.
-  Value futilityMargin;
+  // in the quiescence search. One for each color.
+  Value futilityMargin[2];
 };
 
 
@@ -104,7 +106,6 @@ struct EvalInfo {
 ////
 
 extern Value evaluate(const Position& pos, EvalInfo& ei, int threadID);
-extern Value quick_evaluate(const Position& pos);
 extern void init_eval(int threads);
 extern void quit_eval();
 extern void read_weights(Color sideToMove);

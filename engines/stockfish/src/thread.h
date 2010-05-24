@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,6 +26,8 @@
 //// Includes
 ////
 
+#include <cstring>
+
 #include "lock.h"
 #include "movepick.h"
 #include "position.h"
@@ -36,7 +38,8 @@
 //// Constants and variables
 ////
 
-const int THREAD_MAX = 8;
+const int MAX_THREADS = 8;
+const int ACTIVE_SPLIT_POINTS_MAX = 8;
 
 
 ////
@@ -44,35 +47,48 @@ const int THREAD_MAX = 8;
 ////
 
 struct SplitPoint {
-  SplitPoint *parent;
-  Position pos;
-  SearchStack sstack[THREAD_MAX][PLY_MAX_PLUS_2];
-  SearchStack *parentSstack;
-  int ply;
-  Depth depth;
-  volatile Value alpha, beta, bestValue, futilityValue;
-  Value approximateEval;
+
+  // Const data after splitPoint has been setup
+  SplitPoint* parent;
+  const Position* pos;
   bool pvNode;
-  int master, slaves[THREAD_MAX];
+  Depth depth;
+  bool mateThreat;
+  Value beta;
+  int ply, master, slaves[MAX_THREADS];
+  SearchStack sstack[MAX_THREADS][PLY_MAX_PLUS_2];
+
+  // Const pointers to shared data
+  MovePicker* mp;
+  SearchStack* parentSstack;
+
+  // Shared data
   Lock lock;
-  MovePicker *mp;
+  volatile Value alpha;
+  volatile Value bestValue;
   volatile int moves;
   volatile int cpus;
-  bool finished;
+  volatile bool stopRequest;
 };
 
+// ThreadState type is used to represent thread's current state
+
+enum ThreadState
+{
+  THREAD_SEARCHING,     // thread is performing work
+  THREAD_AVAILABLE,     // thread is polling for work
+  THREAD_SLEEPING,      // we are not thinking, so thread is sleeping
+  THREAD_BOOKED,        // other thread (master) has booked us as a slave
+  THREAD_WORKISWAITING, // master has ordered us to start
+  THREAD_TERMINATED     // we are quitting and thread is terminated
+};
 
 struct Thread {
-  SplitPoint *splitPoint;
+  SplitPoint* splitPoint;
   volatile int activeSplitPoints;
   uint64_t nodes;
   uint64_t betaCutOffs[2];
-  bool failHighPly1;
-  volatile bool stop;
-  volatile bool running;
-  volatile bool idle;
-  volatile bool workIsWaiting;
-  volatile bool printCurrentLine;
+  volatile ThreadState state;
   unsigned char pad[64]; // set some distance among local data for each thread
 };
 

@@ -1,7 +1,7 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2009 Marco Costalba
+  Copyright (C) 2008-2010 Marco Costalba, Joona Kiiski, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,9 @@
 #include <cassert>
 #include <cmath>
 #include <cstring>
+#if !(defined(__hpux) || defined(__ppc__) || defined(__ppc64__) || defined(__arm__))
+#  include <xmmintrin.h>
+#endif
 
 #include "movegen.h"
 #include "tt.h"
@@ -53,8 +56,6 @@ TranspositionTable::~TranspositionTable() {
 /// measured in megabytes.
 
 void TranspositionTable::set_size(size_t mbSize) {
-
-  assert(mbSize >= 4 && mbSize <= 8192);
 
   size_t newSize = 1024;
 
@@ -124,6 +125,7 @@ void TranspositionTable::store(const Key posKey, Value v, ValueType t, Depth d, 
           if (tte->key() && t == VALUE_TYPE_EV_LO)
               return;
 
+          // Preserve any exsisting ttMove
           if (m == MOVE_NONE)
               m = tte->move();
 
@@ -168,20 +170,24 @@ TTEntry* TranspositionTable::retrieve(const Key posKey) const {
 /// to be loaded from RAM, that can be very slow. When we will
 /// subsequently call retrieve() the TT data will be already
 /// quickly accessible in L1/L2 CPU cache.
+#if defined(__hpux) || defined(__ppc__) || defined(__ppc64__) || defined(__arm__)
+void TranspositionTable::prefetch(const Key) const {} // Not supported on HP UX
+#else
 
 void TranspositionTable::prefetch(const Key posKey) const {
 
 #if defined(__INTEL_COMPILER) || defined(__ICL)
-   // This hack prevents prefetches to be optimized away by the
+   // This hack prevents prefetches to be optimized away by
    // Intel compiler. Both MSVC and gcc seems not affected.
    __asm__ ("");
 #endif
 
    char const* addr = (char*)first_entry(posKey);
-  //_mm_prefetch(addr, 3);
-  //_mm_prefetch(addr+64, 3); // 64 bytes ahead
+  _mm_prefetch(addr, _MM_HINT_T2);
+  _mm_prefetch(addr+64, _MM_HINT_T2); // 64 bytes ahead
 }
 
+#endif
 
 /// TranspositionTable::new_search() is called at the beginning of every new
 /// search. It increments the "generation" variable, which is used to
