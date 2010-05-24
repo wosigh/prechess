@@ -1,20 +1,21 @@
 var bestmove;
 var running=0;
-var mymoves;
+var mymoves=0;
+var F=0;
 var b;
 var deltas = [];
 var delta_cnts = [];
+var redos = [];
+var redo_cnts = [];
 var status="nnn";
 var fenstring;
 var setTimeValue=1000;
+var infoTimer;
 var loopTimer;
-var last;
-var engineplaywhite=false;
-var engineplayblack=false;
-
 var WHITE_FIG=64;
 var BLACK_FIG=128;
 var CHANGE_COLOR=192;
+var first_l=false;
 
 
  function GameAssistant() {
@@ -23,50 +24,47 @@ var CHANGE_COLOR=192;
       to the scene controller (this.controller) has not be established yet, so any initialization
       that needs the scene controller should be done in the setup function below. */
 }
+
+
+// PlayWhte
+function pw() {
+
+    if (PreChess.CNewGame)
+    {
+    	doNewGame();
+    	PreChess.CNewGame = false;	
+	}
+
+    
+    if (F < 2 && c == WHITE_FIG && PreChess.PlayWhte) {
+        F = 2;
+        setTimeout("cpu(true)", 800);
+		
+    }
+    
+    
+    if (F < 2 && c == BLACK_FIG && PreChess.PlayBlck) {
+        F = 2;
+             
+        setTimeout("cpu(false)", 800);
+    }
+    
+   	setTimeout("pw()",1000);
+   
+    
+    
+}
+
+
 GameAssistant.prototype.setup = function () {
     /* this function is for setup tasks that have to happen when the scene is first created */
     /* use Mojo.View.render to render view templates and add them to the scene, if needed. */
     /* setup widgets here */
     /* add event handlers to listen to events from widgets */
-	
-
-	
-    this.controller.setupWidget(Mojo.Menu.appMenu, {
-        omitDefaultItems: true
-    },
-    this.appMenuModel);
-    this.appMenuModel = {
-        visible: true,
-        items: [ //	{ label: $L('Custom 1'), command: 'cmd-Cust1' },
-        //Mojo.Menu.editItem,
-        //	{ label: $L('Custom 2'), command: 'cmd-Cust2' },
-        {
-            label: "About",
-            command: 'do-myPrefs'
-        },
-        {
-            label: "Help...",
-            command: 'do-myHelp'
-        }]
-    }; // Setup toggle widget and an observer for when it is changed
-    this.whitetoggle = {
-        trueLabel: '1',
-        //if the state is true, what to label the toggleButton; default is 'On'
-        trueValue:  '1' ,//if the state is true, what to set the model[property] to; default if not specified is true
-        falseLabel: '0',
-        //if the state is false, what to label the toggleButton; default is Off
-        falseValue: '0', //if the state is false, , what to set the model[property] to; default if not specific is false],
-        fieldName: 'PlayWhite' //name of the field; optional
-    }
-    this.blacktoggle = {
-        trueLabel: '1',
-        //if the state is true, what to label the toggleButton; default is 'On'
-        trueValue:  '1' ,//if the state is true, what to set the model[property] to; default if not specified is true
-        falseLabel: '0',
-        //if the state is false, what to label the toggleButton; default is Off
-        falseValue: 'false', //if the state is false, , what to set the model[property] to; default if not specific is false],
-        fieldName: 'PlayBlack' //name of the field; optional
-    }
+		
+    // Setup App Menu
+    this.controller.setupWidget(Mojo.Menu.appMenu, MenuAttr, MenuModel); 
+    
     this.tModel = {
         value: false,
         // Current value of widget, from choices array.
@@ -77,60 +75,7 @@ GameAssistant.prototype.setup = function () {
         // Current value of widget, from choices array.
         disabled: false //whether or not the checkbox value can be changed; if true, this cannot be changed; default is false	
     }
-    this.controller.setupWidget('BackButton', this.backbutton, {label: $L('Back')});
-    this.controller.setupWidget('PlayWhite', this.whitetoggle, this.fModel);
-    this.controller.setupWidget('PlayBlack', this.blacktoggle, this.tModel);
-    Mojo.Event.listen(this.controller.get('PlayWhite'), Mojo.Event.propertyChange, this.whitetogglePressed.bindAsEventListener(this));
-    Mojo.Event.listen(this.controller.get('PlayBlack'), Mojo.Event.propertyChange, this.blacktogglePressed.bindAsEventListener(this)); //Mojo.Event.listen(this.controller.get('Button'),Mojo.Event.tap,this.buttonPressed.bindAsEventListener(this));
-    Mojo.Event.listen(this.controller.get('BackButton'), Mojo.Event.tap, this.backbutton.bind(this));
-
-    this.pattributes = {
-        choices: [{
-            label: " fast",
-            value: 1
-        },
-        {
-            label: " 5sec",
-            value: 2
-        },
-        {
-            label: "10sec",
-            value: 3
-        },
-        {
-            label: " infi",
-            value: 4
-        }]
-    };
-    this.pmodel = {
-        value: ' 5sec',
-        disabled: false
-    };
-    this.controller.setupWidget("setTime", this.pattributes, this.pmodel); // Observe mojo-property-change events on our selector widgets:
-    this.controller.listen('setTime', Mojo.Event.propertyChange, this.selectorChanged.bindAsEventListener(this));
-    var attributes = {
-        hintText: 'hint',
-        textFieldName: 'name',
-        modelProperty: 'original',
-        multiline: false,
-        disabledProperty: 'disabled',
-        focus: true,
-        modifierState: Mojo.Widget.capsLock,
-        //autoResize: 	automatically grow or shrink the textbox horizontally,
-        //autoResizeMax:	how large horizontally it can get
-        //enterSubmits:	when used in conjunction with multline, if this is set, then enter will submit rather than newline
-        limitResize: false,
-        holdToEnable: false,
-        focusMode: Mojo.Widget.focusSelectMode,
-        changeOnKeyPress: true,
-        textReplacement: false,
-        maxLength: 30,
-        requiresEnterKey: false
-    };
-    this.model = {
-        'original': 'initial value',
-        disabled: false
-    };
+    
     this.controller.setupWidget('textField', attributes, this.model);
     Mojo.Log.error('ported apps setup'); //Globals for chess program
     pimg = new Array();
@@ -146,30 +91,45 @@ GameAssistant.prototype.setup = function () {
     py = 0;			// y-pos click
     mymoves = 0;
 	l();	
+	
+    
+	
 	Mojo.Log.error('end of setup');
 };
 
 function plugin_calculate() {
 	var resp=$('polyglot').plugin_calculate(fenstring);	
-}
+	if (PreChess.ShowInfo!=false) plugin_info();
+	}
 
 function  plugin_stop() {
-    $('polyglot').plugin_stop();	
-    // plugin_status();	
+	$('polyglot').plugin_stop();	
+    // plugin_status();
+    clearTimeout(infoTimer);	
 }
 
+
+function  plugin_info() {
+	info=$('polyglot').plugin_info();	
+  Mojo.Log.error("info "+info);
+  st(info);
+  infoTimer=setTimeout("plugin_info()",1000);
+  
+}
+
+
 function  plugin_result() {
-    plugin_status();
-	if (status.charAt(2)!="y")	// lookfor
+  Mojo.Log.error("plugin_result");
+  plugin_status();
+	if (status.charAt(2)!="y" )	// lookfor
 	{
-		// Mojo.Log.error("add for look for");
 		loopTimer=setTimeout("plugin_result()",500);
 	}
 	else
 	{
 		Mojo.Log.error("fine");		
 		bestmove=$('polyglot').plugin_result();               
-    	bestmove2board();                  
+		bestmove2board();                  
     	clearTimeout(loopTimer);
 	}
 }
@@ -181,10 +141,131 @@ function  plugin_status() {
 	// Mojo.Log.error(status.charAt(0)+status.charAt(1)+status.charAt(2));
 }
 
+function doNewGame() {
+
+
+   for (;;)
+    {
+    	if (delta_cnts.length > 0 )
+	    {
+		    var delta_cnt = delta_cnts.pop();
+		    var delta = deltas.pop();
+			
+				    	
+		    for (var d=0;d<(delta_cnt/2);d++)
+		    {
+				Mojo.Log.error("delta[d*2]"+delta[d*2]);
+				Mojo.Log.error("delta[d*2+1]"+delta[d*2+1]);
+		    	b[delta[d*2]]=delta[d*2+1];    	
+		    }
+	
+			c = c ^ CHANGE_COLOR ;
+			mymoves= mymoves-1 ;		    
+	    	
+		} 
+		else
+		{
+			break;
+		}   
+	}
+	
+	
+	for (;;)
+	{
+	 	if (redo_cnts.length > 0 )
+	  	{
+		    var delta_cnt = redo_cnts.pop();
+		    var delta = redos.pop();
+		}
+		else
+		{
+			break;
+		}		
+	}
+	
+	dxxx(b);
+	F=0;
+			
+}
+
+GameAssistant.prototype.backgesture = function (event) {
+
+    Mojo.Log.error("back");
+    
+    
+    for (j=0;j<2;j++)
+    {
+    	if (delta_cnts.length > 0 )
+	    {
+		    var delta_cnt = delta_cnts.pop();
+		    var delta = deltas.pop();
+			
+			Mojo.Log.error("delta_cnt"+delta_cnt);
+			
+			var b_old2= [];
+			b_old2=b.clone();
+	    	
+		    for (var d=0;d<(delta_cnt/2);d++)
+		    {
+				Mojo.Log.error("delta[d*2]"+delta[d*2]);
+				Mojo.Log.error("delta[d*2+1]"+delta[d*2+1]);
+		    	b[delta[d*2]]=delta[d*2+1];    	
+		    }
+	
+			redo_calc(b_old2,b);		
+			
+		    mymoves= mymoves-1 ;
+		    dxxx(b);
+		    F=0;
+		    c = c ^ CHANGE_COLOR ;
+			
+	    	
+		}    
+	}
+};
+
+GameAssistant.prototype.forwardgesture = function (event) {
+
+    Mojo.Log.error("forward");
+    
+    
+    for (j=0;j<2;j++)
+    {
+        if (redo_cnts.length > 0 )
+	    {
+			Mojo.Log.error("forward 1 ");
+	    	
+		    var delta_cnt = redo_cnts.pop();
+		    var delta = redos.pop();
+			
+			Mojo.Log.error("delta_cnt"+delta_cnt);
+			
+			var b_old2= [];
+			b_old2=b.clone();
+	    	
+			
+		    for (var d=0;d<(delta_cnt/2);d++)
+		    {
+				Mojo.Log.error("delta[d]"+delta[d]);
+				Mojo.Log.error("delta[d+1]"+delta[d+1]);
+		    	b[delta[d*2]]=delta[d*2+1];    	
+		    }	
+	
+			delta_calc(b_old2,b);
+			
+		    mymoves= mymoves+1 ;
+		    dxxx(b);
+		    F=0;
+		    c = c ^ CHANGE_COLOR ;
+		}    
+	}
+};
 
 
 GameAssistant.prototype.selectorChanged = function (event) {
-    Mojo.Log.error(event.value);
+    Mojo.Log.error();
+    
+	Mojo.Log.error(event.value);
     if (event.value==1)
     {
     	setTimeValue=0;
@@ -200,93 +281,53 @@ GameAssistant.prototype.selectorChanged = function (event) {
     
     if (event.value==4)
     {
-    	setTimeValue=8000;
+    	setTimeValue=100000;
     }
     	
 }
-GameAssistant.prototype.whitetogglePressed = function (event) { //Display the value of the toggle
-    if (event.value=="1")
-    {
-    	
-    	engineplaywhite=true;
-        pw(event.value);
-    }
-    else
-    {
-    	engineplaywhite=false;
-    }
-    
-};
-GameAssistant.prototype.blacktogglePressed = function (event) { //Display the value of the toggle
-    if (event.value=="1")
-    {
-    	engineplayblack=true;
-    	pb(event.value);    	
-    }
-    else
-    {
-    	engineplayblack=false;
-    }	
-};
-
-GameAssistant.prototype.backbutton = function (event) {
-    Mojo.Log.error("back");
-    
-    this.tModel.value=this.fModel.falseValue;
-    this.fModel.value=this.fModel.falseValue;
-	this.controller.modelChanged(this.tModel);
-	this.controller.modelChanged(this.fModel);
-	engineplaywite=engineplayblack=false;    
-    
-    if (delta_cnts.length > 0 )
-    {
-	    var delta_cnt = delta_cnts.pop();
-	    var delta = deltas.pop();
-	    for (var d=0;d<delta_cnt*2;d=d+2)
-	    {
-	    	b[delta[d]]=delta[d+1];    	
-	    }	    
-	    mymoves= mymoves-1 ;
-	    dxxx(b);
-	    last = !last;
-	    F=0;
-	    c = c ^ CHANGE_COLOR ;
-	}
-};
 
 
 GameAssistant.prototype.handleCommand = function (event) {
     this.controller = Mojo.Controller.stageController.activeScene();
-    if (event.type == Mojo.Event.command) {
-        switch (event.command) { // these are built-in commands. we haven't enabled any of them, but
-            // they are listed here as part of the boilerplate, to be enabled later if needed
-        case 'do-myPrefs':
-            this.controller.showAlertDialog({
-                title:
-                $L("About PreChess"),
-                message: $L("PreChess is a direct port of Niel Pearce's Javascript chess. Castling, en-passent and pawn promotion are all catered for, but the rule 'Game is drawn if a position repeats three times' is not implemented. The CPU performs an alpha-beta search to a depth of two moves, but does not examine check at the deepest level."),
-                choices: [{
-                    label: $L('OK'),
-                    value: "refresh",
-                    type: 'affirmative'
-                }]
-            });
-            break; // another built-in menu item, but we've enabled it (see below in this method)
-            // so now we have to handle it:
-        case 'do-myHelp':
-            this.controller.stageController.assistant.showScene('help', 'help');
-            break;
-        }
-    }
+	if (event.type == Mojo.Event.back)
+    {
+		this.backgesture(event);
+		event.preventDefault(); 
+		event.stopPropagation(); 
+	}
+	
+	if (event.type == Mojo.Event.forward)
+    {
+		this.forwardgesture(event);
+		event.preventDefault(); 
+		event.stopPropagation(); 
+	}
+	
+	
+	
+	if (event.type == Mojo.Event.flick || event.type == Mojo.Event.tap )
+	{
+			PreChess.CNewGame = true;
+	}
+    
 }
+
+var wt;
+var bt;
+
 GameAssistant.prototype.activate = function (event) {
     /* put in event handlers here that should only be in effect when this scene is active. For
 	   example, key handlers that are observing the document */
-    l();
+    if (!first_l) l();
+    first_l=true;
+    wt=setTimeout("pw()", 500);
+	dxxx(b);
 };
 GameAssistant.prototype.deactivate = function (event) {
     /* remove any event handlers you added in activate and do any other cleanup that should happen before
 	   this scene is popped or another scene is pushed on top */
+	// clearTimer(wt);
+	   
 };
 GameAssistant.prototype.cleanup = function (event) {
     /* this function should do any cleanup needed before the scene is destroyed as 
@@ -332,16 +373,18 @@ function bestmove2board()
 	dest=(x2-1)+(y2-1)*8;
     source=63-source;
     dest=63-dest;	
-	ps=b[source];
+    
+	ps=b[source]|0x20;
+	to=b[dest];
 	movetoright=(x2>x1);
 	blackgroundline=(dest<8);
 	straightcolumn=(x1==x2);
 	straightline=(y1==y2);
 	diagonal=(x1!=x2);
 	
-	if ((ps==70 || ps==134) && Math.abs(dest-source)>1 && straightline)  type=1;
-	if ((ps==97 || ps==161) && diagonal)              type=2;
-	if ((ps==97 || ps==161) && (y2==0 || y2==7))    type=3;
+	if ((ps==166 || ps==102 ) && Math.abs(dest-source)>1 && straightline)  type=1;
+	if ((ps==161) && diagonal && (b[dest]==0 || b[dest]==undefined ))      type=2;
+	if ((ps==97) && (y2==1 || y2==8))    type=3;
 
     
 	switch (type)
@@ -353,11 +396,15 @@ function bestmove2board()
 			{
 				if (blackgroundline)
 				{
-					b[source+3]=0;
-					b[source+1]=100+ad; // move rook
+					Mojo.Log.error("111");
+
+					b[source-4]=0;
+					b[dest+1]=100+ad; // move rook
 				}
 				else
 				{
+					Mojo.Log.error("222");
+
 					b[dest+1]=100+ad; // move rook
 					b[source-4]=0; // remove rook
 				}
@@ -366,14 +413,19 @@ function bestmove2board()
 			{
 				if (blackgroundline)
 				{
+					Mojo.Log.error("333");
+
 					b[source+3]=0;  // remove rook
 					b[source+1]=100+ad; // move rook
 				}
 				else
 				{
+					Mojo.Log.error("444");
+
 					b[dest-1]=100+ad; // move rook
 					b[source+3]=0; // remove rook
 				}	
+
 				
 			}
 			
@@ -411,16 +463,22 @@ function bestmove2board()
     F = 0;    
 	mymoves = mymoves + 1;
 	running=0;
-	st("#:" + mymoves + " "+ bestmove );
+	// st(" #:" + mymoves + " "+ bestmove );
+	Mojo.Log.error("nx PlayWhte %d c=%d ",PreChess.PlayWhte,c);
+    Mojo.Log.error("nx PlayBlck %d c=%d ",PreChess.PlayBlck,c);
+    if ((PreChess.PlayWhte && c == WHITE_FIG) || (  PreChess.PlayBlck && c == BLACK_FIG)) {
+        	F = 2;
+        	setTimeout("cpu(c == WHITE_FIG)", 1300);        	
+    }
 }
 
 function smfen(b,c,mymoves) {
 	K = "";
 	K += "position fen ";
-	var castlebq = 1 ;
-	var castlebk = 1 ;
-	var castlewQ = 1 ;
-	var castlewK = 1 ;
+	var castlebq = true ;
+	var castlebk = true ;
+	var castlewQ = true ;
+	var castlewK = true ;
 	for (var y = 0; y <8 ; ++y) 
 	{
 		var spaces=0;
@@ -441,7 +499,9 @@ function smfen(b,c,mymoves) {
 				case  67: fig='B'; break;
 				case  68: fig='R'; break;
 				case  69: fig='Q'; break;
-				case  70: fig='K'; break;						
+				case  70: fig='K'; 
+									Mojo.Log.error("White King has not moved");
+                break;						
 				
 				// white moved
 				case  97: fig='P'; break;
@@ -451,17 +511,19 @@ function smfen(b,c,mymoves) {
 						fig='R';
 						if (b[56]!=68)
 						{
-							castlewQ=0;
+							castlewQ=false;
 						}
 						if (b[63]!=68)
 						{
-							castlewK=0;
+							castlewK=false;
 						}
 						break;									
 				case 101: fig='Q'; break;
 				case 102: fig='K';
-						castlewQ=0;
-						castlewK=0;
+						Mojo.Log.error("White King has moved");
+
+						castlewQ=false;
+						castlewK=false;
 						break;					
 			
 				// non moved
@@ -470,7 +532,10 @@ function smfen(b,c,mymoves) {
 				case 131: fig='b'; break;
 				case 132: fig='r'; break;
 				case 133: fig='q'; break;
-				case 134: fig='k'; break;
+				case 134: fig='k'; 
+					Mojo.Log.error("Black King has not moved");
+
+				break;
 				
 				// moved
 				case 161: fig='p'; break;
@@ -479,17 +544,19 @@ function smfen(b,c,mymoves) {
 				case 164: fig='r';							
 						if (b[0]!=132)
 						{
-							castlebq=0;
+							castlebq=false;
 						}
 						if (b[7]!=132)
 						{
-							castlebk=0;
+							castlebk=false;
 						}
+						
 						break;
 				case 165: fig='q'; break;
 				case 166: fig='k';
-						castlebq=0;
-						castlebk=0;
+						Mojo.Log.error("White King has moved");
+						castlebq=false;
+						castlebk=false;
 						break;									
 			
 				default:
@@ -549,9 +616,14 @@ function smfen(b,c,mymoves) {
 	}
 	
 	K += " ";
-	K += "0";		// 50 moves rule
+	K += "0 ";		// 50 moves rule
+	
 	K += mymoves;
 	K += "\n";
+	if (PreChess.ShowInfo==false)
+	{
+		st(K);
+	}
 	// $($L("gameLog")).innerHTML = "<pre>" + K + "</pre>"; //if (! ((N - 1) % 20)) K = "";
 	return (K);
 	
@@ -589,7 +661,7 @@ function em(b, x, y) {
     return ! b[x + y * 8];
 }
 
-// iswhite
+// figur whithout color
 function ge(b, x, y) {
     return b[x + y * 8] & 7;
 }
@@ -701,56 +773,101 @@ function kn(b, x, y, c, l) {
 function pa(b, x, y, c, l) {
     var Y = y + di(c);
     var Z = y + di(c) * 2;
-    if (!mo(b, x, y) && em(b, x, Y) && em(b, x, Z)) l.push(new P(x, y, x, Z, 2));
+    if (!mo(b, x, y) && em(b, x, Y) && em(b, x, Z)) 
+    {
+    	l.push(new P(x, y, x, Z, 2));
+    }
     if (em(b, x, Y)) {
         if (!Y || Y == 7) l.push(new P(x, y, x, Y, 4));
-        else l.push(new P(x, y, x, Y, 0));
+        else 
+        {
+        l.push(new P(x, y, x, Y, 0));
+       	}
     }
     for (var i = -1; i < 2; i += 2) {
         var X = x + i;
         if (ra(X, Y)) {
             if (op(b, X, Y, c)) {
                 if (!Y || Y == 7) l.push(new P(x, y, X, Y, 4));
-                else l.push(new P(x, y, X, Y, 0));
-            } else if (em(b, X, Y) && la(b, X, Y - di(c))) l.push(new P(x, y, X, Y, 1));
+                else 
+                {
+        	    	l.push(new P(x, y, X, Y, 0));
+                }
+            } else if (em(b, X, Y) && la(b, X, Y - di(c))) 
+            {
+            	l.push(new P(x, y, X, Y, 1));
+            }
         }
     }
 }
 
 // draw
 function d(b) {
-    for (var y = 0; y < 8; ++y) for (var x = 0; x < 8; ++x) {
-        var i = "<img src=\"images/";
-        if (F == 1 && x == px && y == py) i += "s";
-        i += (x + y & 1) ? "b": "w";
-        if (!em(b, x, y)) i += (sa(b, x, y, WHITE_FIG) ? "w": "b") + (ge(b, x, y) & 7);
-        document.getElementById("" + x + y).innerHTML = i + ".png\">";
+	if (!PreChess.InvBoard)
+	{
+    	for (var y = 0; y < 8; ++y) for (var x = 0; x < 8; ++x) 
+    	{
+        	var i = "<img src=\"images/";
+	        if (F == 1 && x == px && y == py) i += "s";
+	        i += (x + y & 1) ? "b": "w";
+	        if (!em(b, x, y)) i += (sa(b, x, y, WHITE_FIG) ? "w": "b") + (ge(b, x, y) & 7);
+	        document.getElementById("" + x + y).innerHTML = i + ".png\">";
+	        
+    	}
+    }
+    else
+    {
+    	for (var y = 0; y < 8; ++y) for (var x = 0; x < 8; ++x) 
+    	{
+        	var i = "<img src=\"images/";
+	        if (F == 1 && 7-x == px && 7-y == py) i += "s";
+	        i += (7-x + (7-y) & 1) ? "b": "w";
+	        if (!em(b, 7-x, 7-y)) i += (sa(b, 7-x, 7-y, WHITE_FIG) ? "w": "b") + (ge(b, 7-x, 7-y) & 7);
+	        document.getElementById("" + x + y).innerHTML = i + ".png\">";
+	        
+    	}
     }
 }
 
 
 function dxxx(b) {
-    for (var y = 0; y < 8; ++y) for (var x = 0; x < 8; ++x) {
-        var i = "<img src=\"images/";
-        i += (x + y & 1) ? "b": "w";
-        if (!em(b, x, y)) i += (sa(b, x, y, WHITE_FIG) ? "w": "b") + (ge(b, x, y) & 7);
-        document.getElementById("" + x + y).innerHTML = i + ".png\">";
+    if (!PreChess.InvBoard)
+	{
+    	for (var y = 0; y < 8; ++y) for (var x = 0; x < 8; ++x) 
+    	{
+    		
+	        var i = "<img src=\"images/";
+	        i += (x + y & 1) ? "b": "w";
+	        if (!em(b, x, y)) i += (sa(b, x, y, WHITE_FIG) ? "w": "b") + (ge(b, x, y) & 7);
+	        document.getElementById("" + x + y).innerHTML = i + ".png\">";
+	    }
     }
+    else
+    {
+    	for (var y = 0; y < 8; ++y) for (var x = 0; x < 8; ++x) 
+    	{
+	        var i = "<img src=\"images/";
+	        i += (7-x + (7-y) & 1) ? "b": "w";
+	        if (!em(b, 7-x, 7-y)) i += (sa(b, 7-x, 7-y, WHITE_FIG) ? "w": "b") + (ge(b, 7-x, 7-y) & 7);
+	        document.getElementById("" + x + y).innerHTML = i + ".png\">";
+	    }
+	}
+    
 }
 
 
 
 
 function ma(b, m) {
-	Mojo.Log.error("function ma in");
-    u = new U();
+	  u = new U();
     for (var x = 0; x < 8; ++x) for (var y = 0; y < 8; ++y) if (la(b, x, y)) {
         au(u, b, x, y);
         Z(b, x, y, ge(b, x, y) | co(b, x, y) | mo(b, x, y));
     }
     au(u, b, m.X, m.Y);
-    if (m.f == 4) Z(b, m.X, m.Y, 37 | co(b, m.x, m.y));
-    else Z(b, m.X, m.Y, ge(b, m.x, m.y) | co(b, m.x, m.y) | 32 | (m.f == 2 ? 16 : 0));
+    if (m.f == 4) Z(b, m.X, m.Y, 7 | co(b, m.x, m.y));
+    if (m.f == 2) Z(b, m.X, m.Y, ge(b, m.x, m.y) | co(b, m.x, m.y) | 32 | 16 )
+    if (m.f !=4 && m.f !=2 ) Z(b, m.X, m.Y, ge(b, m.x, m.y) | co(b, m.x, m.y) | 32 | 0 );
     au(u, b, m.x, m.y);
     Z(b, m.x, m.y, 0);
     if (m.f == 1) {
@@ -765,7 +882,6 @@ function ma(b, m) {
         au(u, b, 0, m.y);
         Z(Z(b, 3, m.y, ge(b, 0, m.y) | co(b, 0, m.y) | 32), 0, m.y, 0);
     }
-    Mojo.Log.error("function ma out");    
     return u;
 }
 
@@ -780,7 +896,7 @@ function fi(b, c) {
         else if (i == 4) ro(b, x, y, c, l);
         else if (i == 5) {
             bi(b, x, y, c, l);
-            ro(b, x, y, c, l)
+            ro(b, x, y, c, l);
         } else if (i == 6) ki(b, x, y, c, l);
     }
     for (var i = 0; i < l.length / 3; ++i) {
@@ -796,7 +912,6 @@ function fi(b, c) {
 
 var Sp = [0, 60, 370, 370, 450, 1000, 5000];
 var Sb = [[0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 4, 0, 0, 4, 3, 2, 4, 6, 12, 12, 12, 4, 6, 4, 4, 7, 18, 25, 25, 16, 7, 4, 6, 11, 18, 27, 27, 16, 11, 6, 10, 15, 24, 32, 32, 24, 15, 10, 10, 15, 24, 32, 32, 24, 15, 10, 0, 0, 0, 0, 0, 0, 0, 0], [ - 7, -3, 1, 3, 3, 1, -3, -7, 2, 6, 14, 20, 20, 14, 6, 2, 6, 14, 22, 26, 26, 22, 14, 6, 8, 18, 26, 30, 30, 26, 18, 8, 8, 18, 30, 32, 32, 30, 18, 8, 6, 14, 28, 32, 32, 28, 14, 6, 2, 6, 14, 20, 20, 14, 6, 2, -7, -3, 1, 3, 3, 1, -3, -7], [16, 16, 16, 16, 16, 16, 16, 16, 26, 29, 31, 31, 31, 31, 29, 26, 26, 28, 32, 32, 32, 32, 28, 26, 16, 26, 32, 32, 32, 32, 26, 16, 16, 26, 32, 32, 32, 32, 26, 16, 16, 28, 32, 32, 32, 32, 28, 16, 16, 29, 31, 31, 31, 31, 29, 16, 16, 16, 16, 16, 16, 16, 16, 16], [0, 0, 0, 3, 3, 0, 0, 0, -2, 0, 0, 0, 0, 0, 0, -2, -2, 0, 0, 0, 0, 0, 0, -2, -2, 0, 0, 0, 0, 0, 0, -2, -2, 0, 0, 0, 0, 0, 0, -2, -2, 0, 0, 0, 0, 0, 0, -2, 10, 10, 10, 10, 10, 10, 10, 10, 0, 0, 0, 0, 0, 0, 0, 0], [ - 2, -2, -2, 0, 0, -2, -2, -2, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, -2, -2, 0, 0, 0, 0, 0, 0, -2, -2, 0, 0, 0, 0, 0, 0, -2, -2, 0, 0, 0, 0, 0, 0], [3, 3, 8, -12, -8, -12, 10, 5, 0, 0, -5, -5, -12, -12, -12, -12, -5, -5, -7, -15, -15, -15, -15, -15, -15, -7, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20], []];
-for (var x = 0; x < 8; ++x) for (var y = 0; y < 8; ++y) Sb[6][x + y * 8] = Sb[5][(7 - x) + y * 8];
 function sc(b, c) {
     var s = 0;
     for (var x = 0; x < 8; ++x) for (var y = 0; y < 8; ++y) {
@@ -810,68 +925,43 @@ function cpu(white) {
 	Mojo.Log.error("function cpu in");
     
     //sm(bm);
+  var i=PreChess.MoveTime*1;  
 	if (running==0)
 	{
-	    // ma(b, bm);
+	    //ma(b, bm);
 	    running=1;
   		fenstring=smfen(b,c,mymoves)
 		//plugin_status();
+	
+		setTimeout("plugin_calculate()",0);
+		setTimeout("plugin_stop()", i);		
+		setTimeout("plugin_result()",i+1000);
 		
-		setTimeout("plugin_calculate()",0);								
-		setTimeout("plugin_stop()",setTimeValue);		
-		setTimeout("plugin_result()",setTimeValue+1000);		    
 	}		
 	Mojo.Log.error("function cpu out");
     
 }
 
-// playwhite
-function pw(e) {
-	Mojo.Log.error("function pw in");
-    Mojo.Log.error("pw engineplaywhite %d c=%d  F=%d",engineplaywhite,c,F);
-    Mojo.Log.error("pb engineplayblack %d c=%d  F=%d",engineplayblack,c,F);   
-    
-    if (F < 2 && c == WHITE_FIG && engineplaywhite) {
-        F = 2;
-        setTimeout("cpu(true)", 800);
-		
-    }
-   
-    Mojo.Log.error("function pw out");
-    
-    
-}
-
-// playback
-function pb(e) {
-    
-    Mojo.Log.error("function pb in");
-    Mojo.Log.error("pw engineplaywhite %d c=%d  F=%d",engineplaywhite,c,F);
-    Mojo.Log.error("pb engineplayblack %d c=%d  F=%d",engineplayblack,c,F);   
-        
-    if (F < 2 && c == BLACK_FIG && engineplayblack) {
-        F = 2;
-             
-        setTimeout("cpu(false)", 800);
-    }
-    
-    Mojo.Log.error("function pb out");
-    
-}
 function l(update) {
     Mojo.Log.error("function l in");
     if (!update)
     {
     	b = [];
+    	c = WHITE_FIG;
     }
     for (i = 0; i < 8; ++i) Z(Z(b, i, 6, 65), i, 1, 129);
     d(Z(Z(Z(Z(Z(Z(Z(Z(Z(Z(Z(Z(Z(Z(Z(Z(b, 0, 0, 132), 1, 0, 130), 2, 0, 131), 3, 0, 133), 4, 0, 134), 5, 0, 131), 6, 0, 130), 7, 0, 132), 0, 7, 68), 1, 7, 66), 2, 7, 67), 3, 7, 69), 4, 7, 70), 5, 7, 67), 6, 7, 66), 7, 7, 68));
-    c = WHITE_FIG;
     Mojo.Log.error("function l out");
 }
 
 function hu(x, y) {
 	Mojo.Log.error("function hu in");
+		
+	if (PreChess.InvBoard)
+	{
+		x=7-x;
+		y=7-y;
+	}
     var b_old1=[];
     
     b_old1=b.clone();
@@ -896,17 +986,33 @@ function hu(x, y) {
                 var o = fi(b, c ^ CHANGE_COLOR);
                 for (var j = 0; j < o.length; ++j) if (ge(b, o[j].X, o[j].Y) == 6 && sa(b, o[j].X, o[j].Y, c)) {
                     un(u, b);
-                    st("Invalid move");
+                    // st(" Invalid move");
                     return;
                 }
                 //sm(m[i]);
 				//smfen(b,2,99);
+				
+				// At this point the pawn after a double move is missing, now fix it
+				if (ge(b, x, y) == 1)
+				{
+					if (Math.abs(m[i].Y-m[i].y)==2)
+					{
+						if (m[i].x==6)
+						{
+							b[m[i].X+m[i].Y*8]=161;
+						}
+						else
+						{
+							b[m[i].X+m[i].Y*8]=97;
+						}
+					}
+				}
 				delta_calc(b_old1,b);
 				nx();
                 return;
             }
         }
-        st("Invalid move");
+        // st(" Invalid move");
     }
     Mojo.Log.error("function hu out");
 }
@@ -925,13 +1031,17 @@ function delta_calc(b_old,b_new)
     		{
     			
     			delta[delta_cnt]= x+y*8;
-    			Mojo.Log.error("pos--%d",x+y*8);
-    			delta[delta_cnt+1]= b_old[x+y*8] ;
-    			Mojo.Log.error("val old--%d",b_old[x+y*8]);
-    			Mojo.Log.error("val new--%d",b_new[x+y*8]);
+    			if (b_old[x+y*8]==undefined)
+				{
+					delta[delta_cnt+1]= 0 ;
+				}
+				else
+				{
+					delta[delta_cnt+1]= b_old[x+y*8] ;
+				}
     			
     			delta_cnt ++ ;
-    			delta_cnt ++ ;
+				delta_cnt ++ ;    			
     		}
     	}	
     }
@@ -939,6 +1049,42 @@ function delta_calc(b_old,b_new)
     deltas.push(delta);
     delta_cnts.push(delta_cnt);
 }
+
+
+function redo_calc(b_old,b_new)
+{
+	var delta = [];
+	var delta_cnt;
+	Mojo.Log.error("redo_calc %d %d",b_old.length,b_new.length );
+	delta_cnt=0;
+	for (var x=0;x<8;x++)
+    {
+    	for (var y=0;y<8;y++)
+    	{
+    		if (b_old[x+y*8]!= b_new[x+y*8])
+    		{
+    			
+    			delta[delta_cnt]= x+y*8;
+    			Mojo.Log.error("pos--%d",x+y*8);
+				if (b_old[x+y*8]==undefined)
+				{
+					delta[delta_cnt+1]= 0 ;
+				}
+				else
+				{
+					delta[delta_cnt+1]= b_old[x+y*8] ;
+				}
+    			
+    			delta_cnt ++ ;
+				delta_cnt ++ ;    			
+    		}
+    	}	
+    }
+    
+    redos.push(delta);
+    redo_cnts.push(delta_cnt);
+}
+
 
 function nx(redraw) {
     Mojo.Log.error("function nx in");
@@ -984,19 +1130,17 @@ function nx(redraw) {
         F = 3;
         mymoves = -1;
         $($L("gameLog")).innerHTML = "";
-        $($L("playWhite")).checked = false;
-        $($L("playBlack")).checked = true;
         l();
         return;
     }
     
     if (!redraw)
     {
-    	Mojo.Log.error("nx engineplaywhite %d c=%d ",engineplaywhite,c);
-    	Mojo.Log.error("nx engineplayblack %d c=%d ",engineplayblack,c);
-    	if ((engineplaywhite && c == WHITE_FIG) || (  engineplayblack && c == BLACK_FIG)) {
+    	Mojo.Log.error("nx PlayWhte %d c=%d ",PreChess.PlayWhte,c);
+    	Mojo.Log.error("nx PlayBlck %d c=%d ",PreChess.PlayBlck,c);
+    	if ((PreChess.PlayWhte && c == WHITE_FIG) || (  PreChess.PlayBlck && c == BLACK_FIG)) {
         	F = 2;
-        	setTimeout("cpu(!last)", 1300);        	
+        	setTimeout("cpu(c==WHITE_FIG)", 1300);        	
     	}
     }
 
