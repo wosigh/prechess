@@ -9,18 +9,6 @@
 #include "SDL.h"
 #include "polyglot.h"
 
-bool skip_answer(char *string,int StringSize)
-{
-   	
-		if (engine_read(string,StringSize,SKIP))
-		{				
-				return (true);
-		}
-		else
-		{
-				return(false);
-		}
-}
 
 bool wait_answer(char *string,int StringSize,const char *answer,int size)
 {
@@ -31,17 +19,23 @@ bool wait_answer(char *string,int StringSize,const char *answer,int size)
 		{
 			if (!memcmp(string,answer,size))
 			{
-				SYSLOG(LOG_WARNING, "-- wait answer --- good %d <%s>\n",i,string);
+				SYSLOG(LOG_WARNING, "-- wait answer --- good %d <%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c>\n",i,
+				string[0],string[1],string[2],string[3],string[4],string[5],string[6],string[7],
+				string[8],string[9],string[10],string[11],string[12],string[13],string[14],string[15],
+				string[16],string[17],string[18],string[19],string[20],string[21],string[22],string[23],
+				string[24],string[25],string[26],string[27],string[28],string[29],string[30],string[31]);
 				return(true);
 			}
 			else
 			{
+			
 				// SYSLOG(LOG_WARNING, "-- wait answer --- bad %d <%s>\n",i,string);				
 			}
 		}
 		else
 		{
-			SYSLOG(LOG_WARNING, "-- wait answer --- bad2 %d <%s>\n",i,string);				
+			SYSLOG(LOG_WARNING, "-- wait answer --- bad %d <%c%c%c%c%c%c%c%c>\n",i,
+				string[0],string[1],string[2],string[3],string[4],string[5],string[6],string[7]);				
 		}
 	}
 	SYSLOG(LOG_WARNING, "xx wait answer xx exit \n");
@@ -57,11 +51,11 @@ int inituci()
    // skip_answer(string,StringSize);
    
    // UCINEWGAME   
-   engine_send("ucinewgame");   
+   engine_send("ucinewgame\n");   
     
    // ISREADY
    SYSLOG(LOG_WARNING, " inituci \n");
-   engine_send("isready");  
+   engine_send("isready\n");  
    wait_answer(string,StringSize,"readyok",7);
  
 }
@@ -79,7 +73,7 @@ int calculate(const char *pos)
    // GO INFINITE
    SYSLOG(LOG_WARNING, " go infinite \n");
     
-   engine_send("go infinite");
+   engine_send("go infinite\n");
    // skip_answer(string,StringSize);
    
    // wait_answer(string,StringSize,"go",2);   
@@ -104,6 +98,8 @@ int lookfor(char *string)
       
    // STOP
    // skip_answer(string,StringSize);   
+   SYSLOG(LOG_WARNING,"%c%c",shmin[0],shmin[1]);   
+   
    SYSLOG(LOG_WARNING, "--- lookfor --- \n");   
    wait_answer(string,StringSize,"bestmove",8);      
    SYSLOG(LOG_WARNING, "--- polyglot::lookfor() 1. bestmove \n");

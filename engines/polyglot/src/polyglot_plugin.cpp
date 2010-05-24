@@ -1,26 +1,47 @@
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <unistd.h>
 #include <signal.h>
 #include <fcntl.h>
 #include <syslog.h>
 #include <string.h>
+#include <wait.h>
+#include <signal.h>
+
 #include "polyglot.h"
 #include "PDL.h"
 #include "SDL.h"
+#include "sys/shm.h"
 
-GLOBAL char result[200];
-GLOBAL char fenstring[250];
-GLOBAL bool bcalculatecommand=false;
-GLOBAL bool bcalculatefinished=false;
+GLOBAL char gacResult[200];
+GLOBAL char gacFenstring[250];
+	
+GLOBAL bool gbCalculateCommand=false;
+GLOBAL bool gbCalculateFinished=false;
 
-GLOBAL bool blookforcommand=false;
-GLOBAL bool blookforfinished=false;
-GLOBAL bool bstop=false;
-GLOBAL bool binitucicommand=false;
-GLOBAL bool binitucifinished=false;
+
+GLOBAL bool gbLookforCommand=false;
+GLOBAL bool gbLookforFinished=false;
+GLOBAL bool gbStop=false;
+GLOBAL bool gbInitUCICommand=false;
+GLOBAL bool gbInitUCIFinshed=false;
 
 GLOBAL bool mydebug=true;
+
+class MaterialInfoTable {
+
+public:
+  MaterialInfoTable()
+  {
+  	SYSLOG(LOG_WARNING, "--- MaterialInfoTable --- %s\n",gacFenstring);
+	}	
+  ~MaterialInfoTable()
+  {
+  		SYSLOG(LOG_WARNING, "--- MaterialInfoTable destructor --- %s\n",gacFenstring);
+	}	
+}; 
+
 	
 bool init()
 {
@@ -55,33 +76,34 @@ PDL_bool plugin_calculate(PDL_MojoParameters* params)
 	const char *myfenstring = PDL_GetMojoParamString(params, 0);
 
 	
-	SYSLOG(LOG_WARNING, "--- plugin_calculate --- %s\n",fenstring);
-	strcpy(fenstring,myfenstring);
+	SYSLOG(LOG_WARNING, "--- plugin_calculate --- %s\n",gacFenstring);
+	strcpy(gacFenstring,myfenstring);
 	
 	//calculate(fenstring);
-	bcalculatecommand=true;
-	bcalculatefinished=false;
+	gbCalculateCommand=true;
+	gbCalculateFinished=false;
 	return PDL_TRUE;
 }
+
 
 
 PDL_bool plugin_stop(PDL_MojoParameters* params) 
 {
 	SYSLOG(LOG_WARNING, "--- plugin_stop --- \n");
 	//stop(result);
-	bstop=true;
+	gbStop=true;
 	//lookfor(result);
-	blookforcommand=true;
-	blookforfinished=false;	
+	gbLookforCommand=true;
+	gbLookforFinished=false;	
 	return PDL_TRUE;
 }
 
 
 PDL_bool plugin_result(PDL_MojoParameters* params) 
 {
-	PDL_MojoReply(params,result);
+	PDL_MojoReply(params,gacResult);
 	SYSLOG(LOG_WARNING, "--- plugin_result --- \n");
-	binitucicommand=true;	
+	gbInitUCICommand=true;	
 	return PDL_TRUE;
 }
 
@@ -90,7 +112,7 @@ PDL_bool plugin_result(PDL_MojoParameters* params)
 PDL_bool plugin_status(PDL_MojoParameters* params) 
 {
 	char res[4];
-	if (binitucifinished)
+	if (gbInitUCIFinshed)
 	{
 		res[0]='y';
 		
@@ -100,7 +122,7 @@ PDL_bool plugin_status(PDL_MojoParameters* params)
 		res[0]='n';		
 	}
 		
-	if (bcalculatefinished)
+	if (gbCalculateFinished)
 	{
 		res[1]='y';
 		
@@ -110,7 +132,7 @@ PDL_bool plugin_status(PDL_MojoParameters* params)
 		res[1]='n';
 	}	
 	
-	if (blookforfinished)
+	if (gbLookforFinished)
 	{
 		res[2]='y';
 		
@@ -120,109 +142,231 @@ PDL_bool plugin_status(PDL_MojoParameters* params)
 		res[2]='n';
 	}
 	
-	SYSLOG(LOG_WARNING, "--- status %s\n",res);
-	
 	PDL_MojoReply(params,res);
 		
 	return PDL_TRUE;
 }
 
 
+PDL_bool plugin_info(PDL_MojoParameters* params) 
+{
+	PDL_MojoReply(params,&shmheartbeat[2]);
+	SYSLOG(LOG_WARNING, "--- plugin_info --- \n");
+	return PDL_TRUE;
+}
 
+
+
+void mySDL_Quit()
+{
+	SYSLOG(LOG_WARNING, "--- mySDL_QUIT --- \n");
+	SDL_Quit();
+}
+
+
+void myPDL_Quit()
+{
+	SYSLOG(LOG_WARNING, "--- myPDL_QUIT --- \n");
+	PDL_Quit();
+}
+
+void signalhandler(int sig)
+{
+	syslog(LOG_WARNING, "polyglot SIGABRT \n");
+}
 
 // functions
 
+
+
+void sighandler ( int signum )  
+{  
+   SYSLOG(LOG_WARNING, "--- polyglot::signal() %d \n",signum);
+}  
+
+
 int main(int argc, char** argv) {
+
+	
+	for (int i=0;i<32;i++) signal(i,signalhandler);
 
    openlog("polyglot", LOG_PID, LOG_USER);
    SYSLOG(LOG_WARNING, "--- polyglot::main() \n");
+  class MaterialInfoTable oT;  
+  int pid=getpid();
+  SYSLOG(LOG_WARNING, "--- polyglot::pid() %d\n",pid);
+  
+	shmidin = shmget(pid*10, 128, 0666 | IPC_CREAT );
+	shmidout = shmget(pid*10+1, 128, 0666 | IPC_CREAT );
+	shmidheartbeat = shmget(pid*10+20, 128, 0666 | IPC_CREAT );
+	
+	
+	
+	if (shmidin!=-1)
+	{
+		shmin = (char *) shmat( shmidin, NULL, 0666 | IPC_CREAT );
+	}
+	else
+	{
+		return(0);
+	}
+	
+	if (shmidout!=-1)
+	{
+		shmout = (char *) shmat( shmidout, NULL, 0666 | IPC_CREAT );
+	}
+	else
+	{
+		return(0);
+	}
+	
+	
+	if (shmidheartbeat!=-1)
+	{
+		shmheartbeat = (char *) shmat( shmidheartbeat, NULL, 0666 | IPC_CREAT );
+	}
+	else
+	{
+		return(0);
+	}
+	
+	if (shmout==0 || shmin==0 || shmheartbeat==0) 
+	{
+		SYSLOG(LOG_WARNING, "--- polyglot::assert() %s %s",__DATE__,__TIME__);
+   	return(0);
+  }
+  
+    memset(shmin,0,128);
+	memset(shmout,0,128);
+	memset(shmheartbeat,0,128);
+	
    SYSLOG(LOG_WARNING, "--- polyglot::main() %s %s",__DATE__,__TIME__);
       
     // Initialize the SDL library with the Video subsystem
     SDL_Init(SDL_INIT_VIDEO);
-
+    atexit(mySDL_Quit);
+    PDL_Init(0);
+    atexit(myPDL_Quit);
+    
 
 	// register the Mojo callbacks
 	PDL_RegisterMojoHandler("plugin_calculate", plugin_calculate);
 	PDL_RegisterMojoHandler("plugin_stop", plugin_stop);
 	PDL_RegisterMojoHandler("plugin_result", plugin_result);
 	PDL_RegisterMojoHandler("plugin_status", plugin_status);
-	
-	
+	PDL_RegisterMojoHandler("plugin_info", plugin_info);
+		
 	// finish registration and start the callback handling thread
 	PDL_MojoRegistrationComplete();
 
    init();
-   binitucifinished=false;
+   gbInitUCIFinshed=false;
    inituci();
-   binitucifinished=true;   
+   gbInitUCIFinshed=true;   
    
    int timer=0;
    
+   static long cnt=3000000;
+     
+        
    SDL_Event Event;
     do {
     	
-    	// sleep(0.1);  
-    		
-    	if (bcalculatecommand && binitucifinished)
-    	{
-    	   result[0]=0;	
-		   calculate(fenstring);
-		   bcalculatecommand=false;	   
-		}
-		
-		if (bstop && binitucifinished)
+    	// hearbeat from engine
+		if (cnt==3000000)
 		{
-		   stop(result);
-		   bstop=false;	  
+			shmheartbeat[1]=1;
 		}
 	
-		if (blookforcommand)
-		{		
-		   lookfor(result);
-		   blookforfinished=true;
-		   blookforcommand=false;	   
+
+		if (cnt--==0) 
+		{
+			if (shmheartbeat[1]==1)
+			{
+				break;
+			}
+			else
+			{
+				cnt=3000000;
+				shmheartbeat[1]=1;
+			}
+		}
+
+    	// heartbeat from ployglot
+    	if (shmheartbeat[0]==1) shmheartbeat[0]=0;
+
+    	sleep(0.1);  
+    		
+    	if (gbCalculateCommand && gbInitUCIFinshed)
+    	{
+    	   gacResult[0]=0;	
+		   calculate(gacFenstring);
+		   gbCalculateCommand=false;	   
 		}
 		
-		if (binitucicommand)
+		if (gbStop && gbInitUCIFinshed)
 		{
-			binitucifinished=false;
+		   stop(gacResult);
+		   gbStop=false;	  
+		}
+	
+		if (gbLookforCommand && shmout[0]==0)
+		{		
+		   lookfor(gacResult);
+		   gbLookforFinished=true;
+		   gbLookforCommand=false;	   
+		}
+		
+		if (gbInitUCICommand && shmout[0]==0 )
+		{
+			  gbInitUCIFinshed=false;
 	   		inituci();
-	    	binitucifinished=true;   
-	    	binitucicommand=false;
+	    	gbInitUCIFinshed=true;   
+	    	gbInitUCICommand=false;
 	    }
-	    	
+	    
 		
     	// Process the events
         while (SDL_PollEvent(&Event)) 
         {
+        	
                 	
-		switch (Event.type) 
-		{
+					switch (Event.type) 
+					{
 	               // List of keys that have been pressed
 	                case SDL_KEYDOWN:
 	                    switch (Event.key.keysym.sym) 
 	                    {
 	                     // Escape forces us to quit the app
 	                        case SDLK_ESCAPE:
+	                           	syslog(LOG_WARNING, "--- polyglot::escape \n");
+   
 	                            Event.type = SDL_QUIT;
 	                            break;
 	
 	                        default:
+	                        	  syslog(LOG_WARNING, "--- polyglot::default1 \n");
+   
 	                            break;
 	                    }
 	                    break;
 	
 	                default:
+	                	  syslog(LOG_WARNING, "--- polyglot::default%d \n",Event.type);
+   
 	                break;
 	         }
 	     } // do
 
     } while (Event.type != SDL_QUIT);
+	 syslog(LOG_WARNING, "--- by \n");
+   
 
-   PDL_Quit();
-   SDL_Quit();
-   SYSLOG(LOG_WARNING, "--- polyglot::main exit() \n");
-   closelog();
-   return 0;
+   // PDL_Quit();
+   // SDL_Quit();
+   // closelog();
+   shmdt(shmin);
+   shmdt(shmout);
+   
+   return (EXIT_SUCCESS);
 }

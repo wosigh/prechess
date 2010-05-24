@@ -6,16 +6,24 @@
 
 extern bool mydebug;
 
-#define SYSLOG(a...) void( (mydebug > 0) ? syslog(a) : void() )
+#define SYSLOG(a...) void( (false) ? syslog(a) : void() )
 
 extern int  calculate(const char *);
 extern int  stop(char *);
 extern int  lookfor(char *);
 extern int  inituci();
-
 extern void popen(const char *);
 extern bool engine_read(char *,size_t,bool);
 extern void engine_send(const char *);
+extern int shmidin;
+extern int shmidout;
+extern int shmidheartbeat;
+
+extern char* shmin;
+extern char* shmout;
+extern char* shmheartbeat;
+
+extern pid_t childpid;
 
 const int StringSize = 4096;
 const int BufferSize = 16384;
@@ -36,4 +44,4 @@ struct io_t {
 
    char in_buffer[BufferSize];
    char out_buffer[BufferSize];
-};
+}; 

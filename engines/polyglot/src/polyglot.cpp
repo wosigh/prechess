@@ -8,146 +8,52 @@
 #include "PDL.h"
 #include "SDL.h"
 #include "polyglot.h"
+#include "sys/shm.h"
 
 GLOBAL FILE * childOutput;
 GLOBAL FILE * childInput;
 
 GLOBAL struct io_t sio;
-GLOBAL struct io_t *io=&sio;
+GLOBAL struct io_t *io=&sio; 
 
-bool io_get_line(io_t * io, char string[], int size) {
-
-   int src, dst;
-   int c;
-
-   src = 0;
-   dst = 0;
-
-   while (true) {
-
-      // test for end of buffer
-
-      if (src >= io->in_size) {
-         if (io->in_eof) {
-            return true;
-         } else {
-         }
-      }
-
-      c = io->in_buffer[src++];
-
-      if (c == LF) { // LF => line complete
-         string[dst] = '\0';
-         SYSLOG(LOG_WARNING, "--- io_get_line %s \n",string);
-         break;
-      } else if (c != CR) { // skip CRs
-         string[dst++] = c;
-      }
-   }
-
-   // shift the buffer
-
-   io->in_size -= src;
-
-   if (io->in_size > 0) memmove(&io->in_buffer[0],&io->in_buffer[src],io->in_size);
-
-   // return
-
-   return true;
-}
-
-static void my_write(int fd, const char string[], int size) {
-
-   int n;
-   do {
-
-      n = write(fd,string,size);
-      if (n == -1)
-	  {
-			SYSLOG(LOG_WARNING, "--- polyglot::my_write error %d \n",size);
-            n = 0; // nothing has been written
-			break;
-      }
-      string += n;
-      size -= n;
-
-   } while (size > 0);
-}
-
-
-bool io_get_update(io_t * io) {
-
-   int pos, size;
-   int n;
-   int to=20;
-
-   // init
-
-   pos = io->in_size;
-   size = BufferSize - pos;
-   n = read(io->in_fd,&io->in_buffer[pos],size);
-   if (n>0)
-   {
-	   io->in_size += n;
-	   SYSLOG(LOG_WARNING, "read bytes %d in_size %d \n",n,io->in_size);
-	   return(true);
-   }
-   else
-   { // EOF
-    io->in_eof = true;
-	  return(false);
-   }
-}
-
+GLOBAL int shmidin;
+GLOBAL int shmidout;
+GLOBAL int shmidheartbeat;
+GLOBAL char *shmin;
+GLOBAL char *shmout;
+GLOBAL char *shmheartbeat;
+GLOBAL pid_t childpid;
 
 void engine_send(const char *string)
 {
-   int len;
-
-   SYSLOG(LOG_WARNING, "engine_send() in\n");
-   len = strlen(string);
-   memcpy(&io->out_buffer[io->out_size],string,len);
-   io->out_size += len;
-   io->out_buffer[io->out_size] = '\0';
-   // io->out_buffer[io->out_size++] = CR;
-   io->out_buffer[io->out_size++] = LF;
-
-   my_write(io->out_fd,io->out_buffer,io->out_size);
-
-   io->out_size = 0;
-   SYSLOG(LOG_WARNING, "engine_send() <%s> out\n",string);
-   // sleep(0.1);
-
+   	SYSLOG(LOG_WARNING, "-- send <%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c>\n",
+				string[0],string[1],string[2],string[3],string[4],string[5],string[6],string[7],
+				string[8],string[9],string[10],string[11],string[12],string[13],string[14],string[15],
+				string[16],string[17],string[18],string[19],string[20],string[21],string[22],string[23],
+				string[24],string[25],string[26],string[27],string[28],string[29],string[30],string[31]);
+    while(shmout[0]!=0)
+    {   		
+    	sleep(0.01);
+    }
+   	sprintf(shmout,"%s",string);
+   	SYSLOG(LOG_WARNING, "send ");
 }
 
 bool engine_read(char *string,size_t StringSize,bool skip)
 {
-   memset(string,0,StringSize);
-   bool data;
-   io->in_eof=false;
-   while ( true )
-   {
-	data=io_get_update(io);
-	if (skip==SKIP)
-	{
-		io->in_size=0;
-		break;
-	}
-	else
-	{
-		if (!io_get_line(io,string,StringSize))
-		{
-		 	return(false);
-		}
- 		else
-  		{
-			if (io->in_eof) break;
-  		}
-  	}
-    }
-    return(true);
-	 
+   	while (shmout[0]!=0)
+   	{
+   		sleep(0.01);
+   	}
+   	if(shmin[0]!=0)
+   	{
+   		sprintf(string,"%s%d",shmin,'\0');		
+   	}   			   	
+   	
 }
+
+
+
 
 void popen(const char *command) {
 	int from_engine[2];
@@ -172,11 +78,9 @@ void popen(const char *command) {
     pipe(from_engine);
 	pipe(to_engine);
 
-	pid_t pid;
+	childpid = fork();
 
-	pid = fork();
-
-	switch (pid)
+	switch (childpid)
 	{
 		case 0:	  // child
 		{
@@ -191,7 +95,7 @@ void popen(const char *command) {
 
 			dup2(STDOUT_FILENO,STDERR_FILENO);
 			
-			nice(-20);
+			//nice(-10);
 
 			execvp(argv[0], &argv[0]);
 		}
@@ -202,6 +106,13 @@ void popen(const char *command) {
 
 		default:		// parent
 		{
+		  //signal ( SIGINT, sighandler ) ;
+
+	    //signal ( SIGQUIT, sighandler1 ) ;
+
+      //signal ( SIGTERM, sighandler2 ) ;
+
+
 			close(from_engine[1]);
 			close(to_engine[0]);
 
@@ -213,7 +124,7 @@ void popen(const char *command) {
 			flags = fcntl(io->out_fd, F_GETFL, 0);
 			fcntl(io->out_fd, F_SETFL, flags | O_NONBLOCK);
 			
-			nice(-5);
+			//nice(-1);
 
 			io->name = "ENGINE";
 			io->in_eof = false;
@@ -223,7 +134,4 @@ void popen(const char *command) {
 		break;
     }
 }
-
-
-
-
+ 
