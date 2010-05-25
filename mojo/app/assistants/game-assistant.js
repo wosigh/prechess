@@ -853,13 +853,13 @@ function hu(x, y) {
 				{
 					if (Math.abs(m[i].Y-m[i].y)==2)
 					{
-						if (m[i].x==6)
+						if (m[i].y>1)
 						{
-							b[m[i].X+m[i].Y*8]=161;
+							b[m[i].X+m[i].Y*8]=97;
 						}
 						else
 						{
-							b[m[i].X+m[i].Y*8]=97;
+							b[m[i].X+m[i].Y*8]=161;
 						}
 					}
 				}
