@@ -1,0 +1,17 @@
+/* TODO: put your application-specific CSS here */
+div.title.truncating-text {
+    	
+	margin: 5px 6px 5px 6px;
+	height: 52px;
+	padding: 0;
+	font-size: 20px;
+	text-align: center;             
+	text-transform: capitalize;
+	color: #fff;
+	line-height: 52px;
+	background: none;
+	border-width: 0 17px;
+	-webkit-box-sizing: border-box;
+	-webkit-border-image: url(../images/palm-button-medium.png) 0 17 104 17 repeat repeat;                     
+}
+
