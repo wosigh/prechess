@@ -1,0 +1,9 @@
+{
+	"id": "com.vocshopgames.chess",
+	"version": "0.0.6",
+	"vendor": "palm",
+	"type": "web",
+	"main": "index.html",
+	"title": "prechess",
+	"icon": "icon.png",
+}
