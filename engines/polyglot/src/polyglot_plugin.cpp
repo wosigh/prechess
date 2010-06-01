@@ -29,18 +29,6 @@ GLOBAL bool gbInitUCIFinshed=false;
 
 GLOBAL bool mydebug=true;
 
-class MaterialInfoTable {
-
-public:
-  MaterialInfoTable()
-  {
-  	SYSLOG(LOG_WARNING, "--- MaterialInfoTable --- %s\n",gacFenstring);
-	}	
-  ~MaterialInfoTable()
-  {
-  		SYSLOG(LOG_WARNING, "--- MaterialInfoTable destructor --- %s\n",gacFenstring);
-	}	
-}; 
 
 	
 bool init()
@@ -192,7 +180,6 @@ int main(int argc, char** argv) {
 
    openlog("polyglot", LOG_PID, LOG_USER);
    SYSLOG(LOG_WARNING, "--- polyglot::main() \n");
-  class MaterialInfoTable oT;  
   int pid=getpid();
   SYSLOG(LOG_WARNING, "--- polyglot::pid() %d\n",pid);
   

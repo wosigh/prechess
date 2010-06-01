@@ -30,6 +30,8 @@ const int BufferSize = 16384;
 const int CR = 0x0D;
 const int LF = 0x0A;
 
+#define OPENING_BOOK "/media/cryptofs/apps/usr/palm/applications/com.vocshopgames.chess/preferences_scene.png" 
+
 struct io_t {
 
    int in_fd;
