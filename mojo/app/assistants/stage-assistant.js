@@ -6,7 +6,11 @@ PreChess.InvBoard = false;
 PreChess.ShowInfo = true;  
 PreChess.PlayWhte = false;
 PreChess.PlayBlck = true;
+PreChess.Download = false;
 PreChess.CNewGame = false;
+PreChess.CSaveGame = false;
+PreChess.MakeTone = false;
+
   	 
 //PreChess.MoveTime = "  4 sec";       	// Feed update interval 
 PreChess.MoveTime;
@@ -39,6 +43,7 @@ StageAssistant.prototype.setup = function () {
     GameScene= this.controller.pushScene('game');
 };
 
+
 // -----------------------------------------
 // handleCommand - called to handle app menu selections
 //    
@@ -57,9 +62,9 @@ StageAssistant.prototype.handleCommand = function(event) {
             break;            
             
             case 'doNewGame':
+            		Mojo.Log.error("PreChess.CNewGame");
                 PreChess.CNewGame=true;
             break;
-				
             
 		}
 	}
@@ -105,18 +110,11 @@ PreChess.Cookie = ({
 
 	if (oldPrefs)
 	{ 
-	    Mojo.Log.error("iMoveTime:"+oldPrefs.MoveTime);
-	    Mojo.Log.error("iMoveTime:"+oldPrefs.MoveTime.value);
-	    
-	    Mojo.Log.error("InvBoard;"+oldPrefs.InvBoard);
-		Mojo.Log.error("ShowInfo;"+oldPrefs.ShowInfo);
-		Mojo.Log.error("PlayWhte;"+oldPrefs.PlayWhte);
-		Mojo.Log.error("PlayBlck;"+oldPrefs.PlayBlck);
-	    
 	    PreChess.MoveTime = oldPrefs.MoveTime;
 	    PreChess.InvBoard = oldPrefs.InvBoard;
 	    PreChess.ShowInfo = oldPrefs.ShowInfo;
-	    PreChess.PlayWite = oldPrefs.PlayWhte;
+	    PreChess.MakeTone = oldPrefs.MakeTone;
+	    PreChess.PlayWhte = oldPrefs.PlayWhte;
 	    PreChess.PlayBlck = oldPrefs.PlayBlck;                
 	  
 	    
@@ -126,20 +124,12 @@ PreChess.Cookie = ({
       
   //  store - function to update stored cookie with global values
   storeCookie: function() {
-  	
-  	Mojo.Log.error("storeCookie");
-  	Mojo.Log.error(PreChess.MoveTime);
-  	
-  	  Mojo.Log.error("sMoveTime:"+PreChess.MoveTime);
-        Mojo.Log.error("sInvBoard;"+PreChess.InvBoard);
-    	Mojo.Log.error("sShowInfo;"+PreChess.ShowInfo);
-    	Mojo.Log.error("sPlayWhte;"+PreChess.PlayWhte);
-    	Mojo.Log.error("sPlayBlck;"+PreChess.PlayBlck);
-    
+
     this.cookieData.put(    {
       MoveTime: PreChess.MoveTime,
       InvBoard: PreChess.InvBoard,
       ShowInfo: PreChess.ShowInfo,
+      MakeTone: PreChess.MakeTone,
       PlayWhte: PreChess.PlayWhte,
       PlayBlck: PreChess.PlayBlck,
       });

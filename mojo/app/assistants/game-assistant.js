@@ -2,7 +2,8 @@ var bestmove;
 var running=0;
 var mymoves=0;
 var F=0;
-var b;
+var b;   // board
+var c; 	 // color
 var deltas = [];
 var delta_cnts = [];
 var redos = [];
@@ -16,7 +17,9 @@ var WHITE_FIG=64;
 var BLACK_FIG=128;
 var CHANGE_COLOR=192;
 var first_l=false;
-
+var getStatus;
+var that;
+var en_passent_marker;
 
 function l(update) {
     Mojo.Log.error("function l in");
@@ -37,14 +40,24 @@ function l(update) {
  }
 
 // PlayWhte
-function pw() {
 
-    if (PreChess.CNewGame)
+GameAssistant.prototype.pw = function () {
+	
+	
+	if (PreChess.CSaveGame)
+    {
+    	this.SaveGame();
+    	PreChess.CSaveGame = false;	
+	}
+	
+	if (PreChess.CNewGame)
     {
     	doNewGame();
+    	this.ResetDepot();
     	PreChess.CNewGame = false;	
 	}
 
+	// st"PlayWhte:"+PreChess.PlayWhte+" PlayBlck:"+PreChess.PlayBlck+" c:"+c+" F:"+F);
     
     if (F < 2 && c == WHITE_FIG && PreChess.PlayWhte) {
         F = 2;
@@ -59,13 +72,44 @@ function pw() {
         setTimeout("cpu(false)", 800);
     }
     
-   	setTimeout("pw()",1000);
+   	setTimeout("that.pw()",1000);
 }
 
 GameAssistant.prototype.setup = function () {
-   // Setup App Menu
+		that=this;
+		this.setup2();
+};
+
+GameAssistant.prototype.setup2 = function () {
+	   // Setup App Menu
+   
     this.controller.setupWidget(Mojo.Menu.appMenu, MenuAttr, MenuModel); 
-      
+      // Setup App Menu
+    
+    var attributes = {
+    hintText: 'hint',
+    textFieldName: 'name',
+    modelProperty: 'original',
+    multiline: false,
+    disabledProperty: 'disabled',
+    focus: true,
+    modifierState: Mojo.Widget.capsLock,
+    //autoResize: 	automatically grow or shrink the textbox horizontally,
+    //autoResizeMax:	how large horizontally it can get
+    //enterSubmits:	when used in conjunction with multline, if this is set, then enter will submit rather than newline
+    limitResize: false,
+    holdToEnable: false,
+    focusMode: Mojo.Widget.focusSelectMode,
+    changeOnKeyPress: true,
+    textReplacement: false,
+    maxLength: 30,
+    requiresEnterKey: false
+    };
+
+    this.model = {
+        'original': 'initial value',
+        disabled: false
+    };
     this.controller.setupWidget('textField', attributes, this.model);
     Mojo.Log.error('ported apps setup'); //Globals for chess program
     pimg = new Array();
@@ -81,9 +125,11 @@ GameAssistant.prototype.setup = function () {
     px = 0;			// x-pos click
     py = 0;			// y-pos click
     mymoves = 0;
-	l();	
+    this.LoadGame(); // Attention LoadGame is asynchron
+    
 	Mojo.Log.error('end of setup');
-};
+}
+
 
 function plugin_calculate() {
 	var resp=$('polyglot').plugin_calculate(fenstring);	
@@ -104,7 +150,7 @@ function  plugin_info() {
 }
 
 function  plugin_result() {
-  Mojo.Log.error("plugin_result");
+	Mojo.Log.error("plugin_result");
   plugin_status();
 	if (status.charAt(2)!="y" )	// lookfor
 	{
@@ -136,16 +182,14 @@ function doNewGame() {
 				Mojo.Log.error("delta[d*2]"+delta[d*2]);
 				Mojo.Log.error("delta[d*2+1]"+delta[d*2+1]);
 		    	b[delta[d*2]]=delta[d*2+1];    	
-		    }
-	
-			c = c ^ CHANGE_COLOR ;
-			mymoves= mymoves-1 ;		    
-	    	
+		    }	
+			c = c ^ CHANGE_COLOR ;			
 		} 
 		else
 		{
 			break;
 		}   
+		mymove=0;
 	}
 	
 	
@@ -231,7 +275,10 @@ GameAssistant.prototype.forwardgesture = function (event) {
 
 
 GameAssistant.prototype.handleCommand = function (event) {
+
+
     this.controller = Mojo.Controller.stageController.activeScene();
+    
 	if (event.type == Mojo.Event.back)
     {
 		this.backgesture(event);
@@ -253,18 +300,103 @@ var bt;
 GameAssistant.prototype.activate = function (event) {
     if (!first_l) l();
     first_l=true;
-    wt=setTimeout("pw()", 500);
-	dxxx(b);
+    wt=setTimeout("that.pw()", 500);
+	  dxxx(b);
 };
 GameAssistant.prototype.deactivate = function (event) {
-};
+		Mojo.Log.info("deactivate");
+	};
+
+
 
 GameAssistant.prototype.cleanup = function (event) {
-
+	
+		Mojo.Log.info("clean");		
 };
 
 
 
+GameAssistant.prototype.Fail = function (error)
+{
+	Mojo.Log.info("Fail");
+};
+
+GameAssistant.prototype.OK = function (error)
+{
+	Mojo.Log.info("Save OK");
+};
+
+
+GameAssistant.prototype.reloadmymoves = function(val) 
+{
+	mymoves = val;
+	if (mymoves==undefined)	mymoves=0;
+	Mojo.Log.error("s mymoves"+mymoves);
+};	
+
+GameAssistant.prototype.reloadb = function(val)          { if (mymoves!=0 && val!=undefined) b = val; };
+GameAssistant.prototype.reloaddeltas = function(val)     { if (mymoves!=0 && val!=undefined) deltas = val; };
+GameAssistant.prototype.reloaddelta_cnts = function(val) { if (mymoves!=0 && val!=undefined) delta_cnts = val;};
+GameAssistant.prototype.reloadredos = function(val)      { if (mymoves!=0 && val!=undefined) redos = val; };
+GameAssistant.prototype.reloadredo_cnts = function(val)  { if (mymoves!=0 && val!=undefined) redo_cnts = val; };
+GameAssistant.prototype.reloadc = function(val)          { 
+	if (mymoves!=0) 
+	{	if (val!=undefined) c = val; 
+		l_first=false;
+		this.activate();
+	}
+};
+
+GameAssistant.prototype.SaveGame = function ()
+{
+	Mojo.Log.error("Save Game");
+
+	this.db = new Mojo.Depot({name: 'ext:achess'});
+						
+	this.db.add('cp_mymoves', (mymoves!=null)?mymoves:'nullval', this.OK, this.Fail);
+	this.db.add('cp_b', (b!=null)?b:'nullval', this.OK, this.Fail);
+	this.db.add('cp_deltas', (deltas!=null)?deltas:'nullval', this.OK, this.Fail);
+	this.db.add('cp_delta_cnts', (delta_cnts!=null)?delta_cnts:'nullval', this.OK, this.Fail);
+	this.db.add('cp_redos', (redos!=null)?redos:'nullval', this.OK, this.Fail);
+	this.db.add('cp_redo_cnts', (redo_cnts!=null)?redo_cnts:'nullval', this.OK, this.Fail);
+	this.db.add('cp_c', (c!=null)?c:'nullval', this.OK, this.Fail);	
+}
+
+
+GameAssistant.prototype.LoadGame = function ()
+{		
+		Mojo.Log.error("Load Game");
+
+	
+		this.db = new Mojo.Depot({name:"ext:achess"});
+		
+		if (this.db==undefined) Mojo.Log.error("Fehler");
+		
+		this.db.get('cp_mymoves',this.reloadmymoves.bind(this), this.Fail.bind(this));		    	   
+    	this.db.get("cp_b",this.reloadb.bind(this),this.Fail.bind(this));	
+    	this.db.get("cp_deltas",this.reloaddeltas.bind(this), this.Fail.bind(this));	
+    	this.db.get('cp_delta_cnts',this.reloaddelta_cnts.bind(this), this.Fail.bind(this));	
+    	this.db.get('cp_redos',this.reloadredos.bind(this) , this.Fail.bind(this));	        	
+    	this.db.get('cp_redo_cnts',this.reloadredo_cnts.bind(this), this.Fail.bind(this));	
+    	this.db.get('cp_c',this.reloadc.bind(this), this.Fail.bind(this));	
+};
+	
+GameAssistant.prototype.ResetDepot = function ()
+{		
+		
+		this.db = new Mojo.Depot({name:"ext:achess"});		
+		
+		this.db.discard('cp_mymoves',this.OK.bind(this), this.Fail.bind(this));		    	   
+    	this.db.discard("cp_b",this.OK.bind(this),this.Fail.bind(this));	
+    	this.db.discard("cp_deltas",this.OK.bind(this), this.Fail.bind(this));	
+    	this.db.discard('cp_delta_cnts',this.OK.bind(this), this.Fail.bind(this));	
+    	this.db.discard('cp_redos',this.OK.bind(this) , this.Fail.bind(this));	        	
+    	this.db.discard('cp_redo_cnts',this.OK.bind(this), this.Fail.bind(this));	
+
+};
+
+
+	
 // showmoves
 function sm(i) {
 	Mojo.Log.error("function sm in");
@@ -310,8 +442,8 @@ function bestmove2board()
 	diagonal=(x1!=x2);
 	
 	if ((ps==166 || ps==102 ) && Math.abs(dest-source)>1 && straightline)  type=1;
-	if ((ps==161) && diagonal && (b[dest]==0 || b[dest]==undefined ))      type=2;
-	if ((ps==97) && (y2==1 || y2==8))    type=3;
+	if ((ps==97  || ps==161) && diagonal && (b[dest]==0 || b[dest]==undefined ))      type=2;
+	if ((ps==97  || ps==161) && (y2==1 || y2==8))    type=3;
     
 	switch (type)
 	{
@@ -373,15 +505,18 @@ function bestmove2board()
 	// nx();
 	dxxx(b);
 	c ^= CHANGE_COLOR;
-    F = 0;    
+	that.SaveGame();
+	
+  F = 0;    
 	mymoves = mymoves + 1;
+	
 	running=0;
-	// st(" #:" + mymoves + " "+ bestmove );
 	Mojo.Log.error("nx PlayWhte %d c=%d ",PreChess.PlayWhte,c);
     Mojo.Log.error("nx PlayBlck %d c=%d ",PreChess.PlayBlck,c);
+    // st("PlayWhte:"+PreChess.PlayWhte+" PlayBlck:"+PreChess.PlayBlck+" c:"+c+" F:"+F);
     if ((PreChess.PlayWhte && c == WHITE_FIG) || (  PreChess.PlayBlck && c == BLACK_FIG)) {
         	F = 2;
-        	setTimeout("cpu(c == WHITE_FIG)", 1300);        	
+        	setTimeout("cpu(c == WHITE_FIG)", 1300);
     }
 }
 
@@ -490,7 +625,6 @@ function smfen(b,c,mymoves) {
 	K += "0 ";		// 50 moves rule
 	K += mymoves;
 	K += "\n";
-	if (PreChess.ShowInfo==false) st(K);
 	return (K);
 }
 
@@ -643,25 +777,45 @@ function pa(b, x, y, c, l) {
     	l.push(new P(x, y, x, Z, 2));
     }
     if (em(b, x, Y)) {
-        if (!Y || Y == 7) l.push(new P(x, y, x, Y, 4));
+        if (!Y || Y == 7) 
+        {
+        	l.push(new P(x, y, x, Y, 4));
+        }
         else 
         {
-        l.push(new P(x, y, x, Y, 0));
+        	l.push(new P(x, y, x, Y, 0));
        	}
     }
+    	
     for (var i = -1; i < 2; i += 2) {
         var X = x + i;
         if (ra(X, Y)) {
             if (op(b, X, Y, c)) {
-                if (!Y || Y == 7) l.push(new P(x, y, X, Y, 4));
+            		
+                if (!Y || Y == 7) 
+                {
+                	l.push(new P(x, y, X, Y, 4));                	
+                } 
                 else 
                 {
-        	    	l.push(new P(x, y, X, Y, 0));
+        	    		l.push(new P(x, y, X, Y, 0));
                 }
-            } else if (em(b, X, Y) && la(b, X, Y - di(c))) 
-            {
-            	l.push(new P(x, y, X, Y, 1));
-            }
+            } else 
+            {            	
+            	// en-passent
+            	if ((x==3 || x==4) && en_passent_marker)
+            	{
+            		if (op(b, X, y, c))
+            		{
+              		l.push(new P(x, y, X, Y, 1));
+	            	}
+	            }
+	            	
+	            if (em(b, X, Y) && la(b, X, Y - di(c))) 
+	            {
+	            	l.push(new P(x, y, X, Y, 1));
+	            }
+          	}
         }
     }
 }
@@ -733,7 +887,7 @@ function ma(b, m) {
         Z(b, x, y, ge(b, x, y) | co(b, x, y) | mo(b, x, y));
     }
     au(u, b, m.X, m.Y);
-    if (m.f == 4) Z(b, m.X, m.Y, 7 | co(b, m.x, m.y));
+    if (m.f == 4) Z(b, m.X, m.Y, 37 | co(b, m.x, m.y));
     if (m.f == 2) Z(b, m.X, m.Y, ge(b, m.x, m.y) | co(b, m.x, m.y) | 32 | 16 )
     if (m.f !=4 && m.f !=2 ) Z(b, m.X, m.Y, ge(b, m.x, m.y) | co(b, m.x, m.y) | 32 | 0 );
     au(u, b, m.x, m.y);
@@ -777,22 +931,11 @@ function fi(b, c) {
     return l;
 }
 
+function cpu(white) 
+{
 
-var Sp = [0, 60, 370, 370, 450, 1000, 5000];
-var Sb = [[0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 4, 0, 0, 4, 3, 2, 4, 6, 12, 12, 12, 4, 6, 4, 4, 7, 18, 25, 25, 16, 7, 4, 6, 11, 18, 27, 27, 16, 11, 6, 10, 15, 24, 32, 32, 24, 15, 10, 10, 15, 24, 32, 32, 24, 15, 10, 0, 0, 0, 0, 0, 0, 0, 0], [ - 7, -3, 1, 3, 3, 1, -3, -7, 2, 6, 14, 20, 20, 14, 6, 2, 6, 14, 22, 26, 26, 22, 14, 6, 8, 18, 26, 30, 30, 26, 18, 8, 8, 18, 30, 32, 32, 30, 18, 8, 6, 14, 28, 32, 32, 28, 14, 6, 2, 6, 14, 20, 20, 14, 6, 2, -7, -3, 1, 3, 3, 1, -3, -7], [16, 16, 16, 16, 16, 16, 16, 16, 26, 29, 31, 31, 31, 31, 29, 26, 26, 28, 32, 32, 32, 32, 28, 26, 16, 26, 32, 32, 32, 32, 26, 16, 16, 26, 32, 32, 32, 32, 26, 16, 16, 28, 32, 32, 32, 32, 28, 16, 16, 29, 31, 31, 31, 31, 29, 16, 16, 16, 16, 16, 16, 16, 16, 16], [0, 0, 0, 3, 3, 0, 0, 0, -2, 0, 0, 0, 0, 0, 0, -2, -2, 0, 0, 0, 0, 0, 0, -2, -2, 0, 0, 0, 0, 0, 0, -2, -2, 0, 0, 0, 0, 0, 0, -2, -2, 0, 0, 0, 0, 0, 0, -2, 10, 10, 10, 10, 10, 10, 10, 10, 0, 0, 0, 0, 0, 0, 0, 0], [ - 2, -2, -2, 0, 0, -2, -2, -2, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, -2, -2, 0, 0, 0, 0, 0, 0, -2, -2, 0, 0, 0, 0, 0, 0, -2, -2, 0, 0, 0, 0, 0, 0], [3, 3, 8, -12, -8, -12, 10, 5, 0, 0, -5, -5, -12, -12, -12, -12, -5, -5, -7, -15, -15, -15, -15, -15, -15, -7, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20], []];
-function sc(b, c) {
-    var s = 0;
-    for (var x = 0; x < 8; ++x) for (var y = 0; y < 8; ++y) {
-        var i = ge(b, x, y);
-        if (i) if (sa(b, x, y, BLACK_FIG)) s += Sb[i == 6 ? 6 : i - 1][(7 - x) + y * 8] + Sp[i];
-        else s -= Sb[i - 1][x + (7 - y) * 8] + Sp[i];
-    }
-    return c == BLACK_FIG ? s: -s;
-}
-function cpu(white) {
-	Mojo.Log.error("function cpu in");
-    
-    //sm(bm);
+	Mojo.Log.info("function cpu in");
+	   
   var i=PreChess.MoveTime*1;  
 	if (running==0)
 	{
@@ -810,9 +953,38 @@ function cpu(white) {
     
 }
 
+
+var Sp = [0, 60, 370, 370, 450, 1000, 5000];
+var Sb = [[0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 4, 0, 0, 4, 3, 2, 4, 6, 12, 12, 12, 4, 6, 4, 4, 7, 18, 25, 
+          25, 16, 7, 4, 6, 11, 18, 27, 27, 16, 11, 6, 10, 15, 24, 32, 32, 24, 15, 10, 10, 15, 24, 32, 
+          32, 24, 15, 10, 0, 0, 0, 0, 0, 0, 0, 0], [ - 7, -3, 1, 3, 3, 1, -3, -7, 2, 6, 14, 20, 20, 14, 
+          6, 2, 6, 14, 22, 26, 26, 22, 14, 6, 8, 18, 26, 30, 30, 26, 18, 8, 8, 18, 30, 32, 32, 30, 18, 8, 
+          6, 14, 28, 32, 32, 28, 14, 6, 2, 6, 14, 20, 20, 14, 6, 2, -7, -3, 1, 3, 3, 1, -3, -7], 
+          [16, 16, 16, 16, 16, 16, 16, 16, 26, 29, 31, 31, 31, 31, 29, 26, 26, 28, 32, 32, 32, 32, 28, 26, 16, 
+          26, 32, 32, 32, 32, 26, 16, 16, 26, 32, 32, 32, 32, 26, 16, 16, 28, 32, 32, 32, 32, 28, 16, 16, 29, 
+          31, 31, 31, 31, 29, 16, 16, 16, 16, 16, 16, 16, 16, 16], [0, 0, 0, 3, 3, 0, 0, 0, -2, 0, 0, 0, 0, 0,
+          0, -2, -2, 0, 0, 0, 0, 0, 0, -2, -2, 0, 0, 0, 0, 0, 0, -2, -2, 0, 0, 0, 0, 0, 0, -2, -2, 0, 0, 0,
+          0, 0, 0, -2, 10, 10, 10, 10, 10, 10, 10, 10, 0, 0, 0, 0, 0, 0, 0, 0], [ - 2, -2, -2, 0, 0, -2, -2,
+         -2, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0,
+         -2, -2, 0, 0, 0, 0, 0, 0, -2, -2, 0, 0, 0, 0, 0, 0, -2, -2, 0, 0, 0, 0, 0, 0], [3, 3, 8, -12, -8, 
+        -12, 10, 5, 0, 0, -5, -5, -12, -12, -12, -12, -5, -5, -7, -15, -15, -15, -15, -15, -15, -7, -20,
+        -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20,
+        -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20, -20], []];
+        
+function sc(b, c) {
+    var s = 0;
+    for (var x = 0; x < 8; ++x) for (var y = 0; y < 8; ++y) {
+        var i = ge(b, x, y);
+        if (i) if (sa(b, x, y, BLACK_FIG)) s += Sb[i == 6 ? 6 : i - 1][(7 - x) + y * 8] + Sp[i];
+        else s -= Sb[i - 1][x + (7 - y) * 8] + Sp[i];
+    }
+    return c == BLACK_FIG ? s: -s;
+}
+
+
 function hu(x, y) {
 	Mojo.Log.error("function hu in");
-		
+			
 	if (PreChess.InvBoard)
 	{
 		x=7-x;
@@ -845,14 +1017,15 @@ function hu(x, y) {
                     // st(" Invalid move");
                     return;
                 }
-                //sm(m[i]);
-				//smfen(b,2,99);
-				
-				// At this point the pawn after a double move is missing, now fix it
-				if (ge(b, x, y) == 1)
+                
+				en_passent_marker=false;
+				                
+				if (ge(b, x, y) == 1) // pawn
 				{
+					// At this point the pawn after a double move is missing, now fix it				
 					if (Math.abs(m[i].Y-m[i].y)==2)
 					{
+						en_passent_marker=true;
 						if (m[i].y>1)
 						{
 							b[m[i].X+m[i].Y*8]=97;
@@ -863,9 +1036,13 @@ function hu(x, y) {
 						}
 					}
 				}
+				
+				
 				delta_calc(b_old1,b);
 				nx();
-                return;
+				mymoves+=1;
+				that.SaveGame();
+				return;
             }
         }
         // st(" Invalid move");
@@ -986,7 +1163,7 @@ function nx(redraw) {
         F = 3;
         mymoves = -1;
         $($L("gameLog")).innerHTML = "";
-        l();
+        l();        
         return;
     }
     
