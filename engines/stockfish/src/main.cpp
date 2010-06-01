@@ -35,6 +35,12 @@
 #include "syslog.h"
 #include <signal.h>
 #include <string.h>
+#include <cstdio>
+
+
+#include "PDL.h"
+#include "SDL.h"
+
 
 
 #ifdef USE_CALLGRIND
@@ -65,9 +71,11 @@ void signalhandler(int sig)
 int main(int argc, char *argv[]) {
 
 	ppid=getppid();
-  syslog(LOG_WARNING, "--- stockfish::ppid() %d\n",ppid);
+    syslog(LOG_WARNING, "--- stockfish::ppid() %d\n",ppid);
 	
 	signal(SIGABRT,signalhandler);
+
+	
 
 	shmidin  = shmget(ppid*10+1, 128, 0666 | IPC_CREAT );
 	shmidout = shmget(ppid*10, 128, 0666 | IPC_CREAT  );

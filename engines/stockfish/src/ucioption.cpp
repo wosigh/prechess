@@ -79,7 +79,7 @@ namespace {
 
     o["Use Search Log"] = Option(false);
     o["Search Log Filename"] = Option("SearchLog.txt");
-    o["Book File"] = Option("/media/cryptofs/apps/usr/palm/applications/com.vocshopgames.chess/book.bin");
+    o["Book File"] = Option("/media/internal/.app-storage/file_.media.cryptofs.apps.usr.palm.applications.com.vocshopgames.chess_0/book.bin");
     o["Mobility (Middle Game)"] = Option(100, 0, 200);
     o["Mobility (Endgame)"] = Option(100, 0, 200);
     o["Pawn Structure (Middle Game)"] = Option(100, 0, 200);
