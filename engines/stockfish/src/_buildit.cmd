@@ -8,7 +8,7 @@ set DEBUG=0
 set SRC=*.cpp
 
 @rem List the libraries needed
-set LIBS=-lSDL -lGLESv2 -lpdl
+set LIBS=-lSDL -lGLESv2 -lpdl -lm
 
 @rem Name your output executable
 set OUTFILE=../stockfish
@@ -20,6 +20,8 @@ if %DEBUG% equ 1 (
 ) else (
    set DEVICEOPTS=
 )
+::   set DEVICEOPTS=%DEVICEOPTS% -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp
+
 
 if %PRE% equ 1 (
    set DEVICEOPTS=%DEVICEOPTS% -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp
@@ -31,7 +33,7 @@ if %PIXI% equ 1 (
 
 echo %DEVICEOPTS%
 
-arm-none-linux-gnueabi-gcc -D__ICL %DEVICEOPTS% -o %OUTFILE% %SRC% "-I%PALMPDK%\include" "-I%PALMPDK%\include\SDL" "-L%PALMPDK%\device\lib" -Wl,--allow-shlib-undefined %LIBS%
+arm-none-linux-gnueabi-gcc -DNDEBUG %DEVICEOPTS% -o %OUTFILE% %SRC% "-I%PALMPDK%\include" "-I%PALMPDK%\include\SDL" "-L%PALMPDK%\device\lib" -Wl,--allow-shlib-undefined %LIBS%
 
 goto :EOF
 

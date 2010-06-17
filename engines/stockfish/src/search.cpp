@@ -2474,36 +2474,6 @@ static long cnt=1000000;
 
     static int lastInfoTime;
     int t = current_search_time();
-		static int ppid=0;
-		
-		// heartbeat from polyglot
-		
-		if (cnt==1000000)
-		{
-			shmheartbeat[0]=1;
-		}
-		
-
-		if (cnt--==0) 
-		{
-			if (shmheartbeat[0]==1)
-			{
-				AbortSearch = true;
-	            Quit = true;
-
-				return;
-			}
-			else
-			{
-				cnt=1000000;
-				shmheartbeat[0]=1;
-			}
-		}
-  		
-		// heartbeat from engine
-			
-		if (shmheartbeat[1]==1) shmheartbeat[1]=0;
-	
 	
     //  Poll for input
     if (shmin[0]!=0)

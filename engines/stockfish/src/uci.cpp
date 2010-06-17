@@ -95,43 +95,11 @@ void uci_main_loop() {
   extern int ppid;
   RootPosition.from_fen(StartPosition);
   string command;
-  static char c=0;
-  static char lastheartbeat;
-  
-  
+   
   bool loop=true;
-  static bool first=true;
-  static bool firstppid;
-  static long cnt;
   
   while (loop)
-  {	  
-		// heartbeat from polyglot
-		
-		if (cnt==3000000)
-		{
-			shmheartbeat[0]=1;
-		}
-	
-
-		if (cnt--==0) 
-		{
-			if (shmheartbeat[0]==1)
-			{
-				break;
-			}
-			else
-			{
-				cnt=3000000;
-				shmheartbeat[0]=1;
-			}
-		}
-		
-		// heartbeat from engine
-			
-		if (shmheartbeat[1]==1) shmheartbeat[1]=0;
-	
-	  	  
+  {	  			  	  
   		if (shmin[0]!=0)
   		{		
   			command = shmin;

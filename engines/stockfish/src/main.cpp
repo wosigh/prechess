@@ -41,7 +41,7 @@
 #include "PDL.h"
 #include "SDL.h"
 
-
+#define SYSLOG(a...) 
 
 #ifdef USE_CALLGRIND
 #include <valgrind/callgrind.h>
@@ -65,13 +65,13 @@ using namespace std;
 
 void signalhandler(int sig)
 {
-	syslog(LOG_WARNING, "stockfish SIGABORT \n");
+	SYSLOG(LOG_WARNING, "stockfish SIGABORT \n");
 }
 
 int main(int argc, char *argv[]) {
 
 	ppid=getppid();
-    syslog(LOG_WARNING, "--- stockfish::ppid() %d\n",ppid);
+	SYSLOG(LOG_WARNING, "--- stockfish::ppid() %d\n",ppid);
 	
 	signal(SIGABRT,signalhandler);
 
@@ -88,14 +88,14 @@ int main(int argc, char *argv[]) {
 	}
 	else
 	{
-		syslog(LOG_WARNING, "--- stockfish::shmidin() \n");
+		SYSLOG(LOG_WARNING, "--- stockfish::shmidin() \n");
 	
 		return(0);
 	}
 	
 	if (shmidout!=-1)
 	{
-		syslog(LOG_WARNING, "--- stockfish::shmidout() \n");
+		SYSLOG(LOG_WARNING, "--- stockfish::shmidout() \n");
 	
 		shmout = (char *) shmat( shmidout, NULL, 0666 | IPC_CREAT );
 	}
@@ -106,7 +106,7 @@ int main(int argc, char *argv[]) {
 	
 	if (shmidheartbeat!=-1)
 	{
-		syslog(LOG_WARNING, "--- stockfish::shmidheartbeat() \n");
+		SYSLOG(LOG_WARNING, "--- stockfish::shmidheartbeat() \n");
 	
 		shmheartbeat = (char *) shmat( shmidheartbeat, NULL, 0666 | IPC_CREAT );
 	}
@@ -124,7 +124,7 @@ int main(int argc, char *argv[]) {
 	memset(shmout,0,128);
 	memset(shmheartbeat,0,128);
   
-	syslog(LOG_WARNING, "--- stockfish::before initialize() \n");
+	SYSLOG(LOG_WARNING, "--- stockfish::before initialize() \n");
 	
 
 	
@@ -135,7 +135,7 @@ int main(int argc, char *argv[]) {
   // Initialization through global resources manager
   Application::initialize();
 
-	syslog(LOG_WARNING, "--- stockfish::after initialize() \n");
+	SYSLOG(LOG_WARNING, "--- stockfish::after initialize() \n");
 
 
 #ifdef USE_CALLGRIND
@@ -170,6 +170,11 @@ int main(int argc, char *argv[]) {
       cout << "Good! CPU has hardware POPCNT. We will use it." << endl;
 #endif
   // Enter UCI mode
+  SYSLOG(LOG_WARNING, "--- stockfish::before uci_main_loop \n");
+
   uci_main_loop();
+  
+  SYSLOG(LOG_WARNING, "--- stockfish::after uci_main_loop \n");
+
   return 0;
 }
