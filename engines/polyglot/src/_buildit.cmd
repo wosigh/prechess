@@ -8,7 +8,7 @@ set DEBUG=0
 set SRC=*.cpp
 
 @rem List the libraries needed
-set LIBS=-lSDL -lGLESv2 -lpdl
+set LIBS=-lSDL -lGLESv2 -lpdl -lm
 
 @rem Name your output executable
 set OUTFILE=../polyglot
@@ -31,7 +31,7 @@ if %PIXI% equ 1 (
 
 echo %DEVICEOPTS%
 
-arm-none-linux-gnueabi-gcc -D__ICL %DEVICEOPTS% -o %OUTFILE% %SRC% "-I%PALMPDK%\include" "-I%PALMPDK%\include\SDL" "-L%PALMPDK%\device\lib" -Wl,--allow-shlib-undefined %LIBS%
+arm-none-linux-gnueabi-gcc %DEVICEOPTS% -o %OUTFILE% %SRC% "-I%PALMPDK%\include" "-I%PALMPDK%\include\SDL" "-L%PALMPDK%\device\lib" -Wl,--allow-shlib-undefined %LIBS%
 
 goto :EOF
 

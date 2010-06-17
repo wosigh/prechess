@@ -36,32 +36,32 @@ bool init()
    char iniLine[132];
    FILE * iniFile;
    const char * command=iniLine;
-   // SYSLOG(LOG_WARNING, "--- polyglot::init() 11 --- \n");
+   SYSLOG(LOG_WARNING, "--- polyglot::init() 11 --- \n");
    iniFile = fopen ("/media/cryptofs/apps/usr/palm/applications/com.vocshopgames.chess/polyglot.ini","r");
    if (iniFile!=NULL)
    {
-		// SYSLOG(LOG_WARNING, "--- polyglot::init() 22 --- \n");
+		SYSLOG(LOG_WARNING, "--- polyglot::init() 22 --- \n");
 		fgets(iniLine,80,iniFile);
-		// SYSLOG(LOG_WARNING, "--- polyglot::init() 33 --- \n");   
+		SYSLOG(LOG_WARNING, "--- polyglot::init() 33 --- \n");   
 		for (int i=0;i<132;i++) iniLine[i]=(iniLine[i]==0x0D?0x0A:iniLine[i]);
-		// SYSLOG(LOG_WARNING, "--- polyglot::init() 44 --- \n");   
+		SYSLOG(LOG_WARNING, "--- polyglot::init() 44 --- \n");   
 		popen(command);
-		// SYSLOG(LOG_WARNING, "--- polyglot::init() 55 --- \n");   
+		SYSLOG(LOG_WARNING, "--- polyglot::init() 55 --- \n");   
 	}
 	else
 	{
-		// SYSLOG(LOG_WARNING, "--- polyglot::init() 66 --- \n"); 
+		SYSLOG(LOG_WARNING, "--- polyglot::init() 66 --- \n"); 
 	}
 }
 
-PDL_bool plugin_calculate(PDL_MojoParameters* params) 
+PDL_bool plugin_calculate(PDL_JSParameters* params) 
 {
-	if (PDL_GetNumMojoParams(params) < 1 )
+	if (PDL_GetNumJSParams(params) < 1 )
 	{
-		PDL_MojoException(params, "You must send a value from 0 to 100");
+		PDL_JSException(params, "You must send a value from 0 to 100");
 		return PDL_TRUE;
 	}
-	const char *myfenstring = PDL_GetMojoParamString(params, 0);
+	const char *myfenstring = PDL_GetJSParamString(params, 0);
 
 	
 	SYSLOG(LOG_WARNING, "--- plugin_calculate --- %s\n",gacFenstring);
@@ -75,7 +75,7 @@ PDL_bool plugin_calculate(PDL_MojoParameters* params)
 
 
 
-PDL_bool plugin_stop(PDL_MojoParameters* params) 
+PDL_bool plugin_stop(PDL_JSParameters* params) 
 {
 	SYSLOG(LOG_WARNING, "--- plugin_stop --- \n");
 	//stop(result);
@@ -87,9 +87,9 @@ PDL_bool plugin_stop(PDL_MojoParameters* params)
 }
 
 
-PDL_bool plugin_result(PDL_MojoParameters* params) 
+PDL_bool plugin_result(PDL_JSParameters* params) 
 {
-	PDL_MojoReply(params,gacResult);
+	PDL_JSReply(params,gacResult);
 	SYSLOG(LOG_WARNING, "--- plugin_result --- \n");
 	gbInitUCICommand=true;	
 	return PDL_TRUE;
@@ -97,7 +97,7 @@ PDL_bool plugin_result(PDL_MojoParameters* params)
 
 
 
-PDL_bool plugin_status(PDL_MojoParameters* params) 
+PDL_bool plugin_status(PDL_JSParameters* params) 
 {
 	char res[4];
 	if (gbInitUCIFinshed)
@@ -130,15 +130,15 @@ PDL_bool plugin_status(PDL_MojoParameters* params)
 		res[2]='n';
 	}
 	
-	PDL_MojoReply(params,res);
+	PDL_JSReply(params,res);
 		
 	return PDL_TRUE;
 }
 
 
-PDL_bool plugin_info(PDL_MojoParameters* params) 
+PDL_bool plugin_info(PDL_JSParameters* params) 
 {
-	PDL_MojoReply(params,&shmheartbeat[2]);
+	PDL_JSReply(params,&shmheartbeat[2]);
 	SYSLOG(LOG_WARNING, "--- plugin_info --- \n");
 	return PDL_TRUE;
 }
@@ -154,6 +154,17 @@ void mySDL_Quit()
 
 void myPDL_Quit()
 {
+	if (childpid > 0) 
+	{   
+		if(kill(childpid,SIGINT)) 
+		{   
+			SYSLOG(LOG_WARNING, "--- engine not killed --- \n");
+		}        
+		
+		waitpid(childpid,0,0);  
+		SYSLOG(LOG_WARNING, "--- after waitpid --- \n");
+	}
+	
 	SYSLOG(LOG_WARNING, "--- myPDL_QUIT --- \n");
 	PDL_Quit();
 }
@@ -180,8 +191,8 @@ int main(int argc, char** argv) {
 
    openlog("polyglot", LOG_PID, LOG_USER);
    SYSLOG(LOG_WARNING, "--- polyglot::main() \n");
-  int pid=getpid();
-  SYSLOG(LOG_WARNING, "--- polyglot::pid() %d\n",pid);
+   int pid=getpid();
+   SYSLOG(LOG_WARNING, "--- polyglot::pid() %d\n",pid);
   
 	shmidin = shmget(pid*10, 128, 0666 | IPC_CREAT );
 	shmidout = shmget(pid*10+1, 128, 0666 | IPC_CREAT );
@@ -236,56 +247,40 @@ int main(int argc, char** argv) {
     atexit(myPDL_Quit);
     
 
-	// register the Mojo callbacks
-	PDL_RegisterMojoHandler("plugin_calculate", plugin_calculate);
-	PDL_RegisterMojoHandler("plugin_stop", plugin_stop);
-	PDL_RegisterMojoHandler("plugin_result", plugin_result);
-	PDL_RegisterMojoHandler("plugin_status", plugin_status);
-	PDL_RegisterMojoHandler("plugin_info", plugin_info);
+	// register the JS callbacks
+	PDL_RegisterJSHandler("plugin_calculate", plugin_calculate);
+	PDL_RegisterJSHandler("plugin_stop", plugin_stop);
+	PDL_RegisterJSHandler("plugin_result", plugin_result);
+	PDL_RegisterJSHandler("plugin_status", plugin_status);
+	PDL_RegisterJSHandler("plugin_info", plugin_info);
 		
 	// finish registration and start the callback handling thread
-	PDL_MojoRegistrationComplete();
+	PDL_JSRegistrationComplete();
 
    init();
    gbInitUCIFinshed=false;
+   SYSLOG(LOG_WARNING, "--- polyglot before inituci");
    inituci();
+   SYSLOG(LOG_WARNING, "--- polyglot after inituci");
    gbInitUCIFinshed=true;   
    
    int timer=0;
    
    static long cnt=3000000;
      
+   SYSLOG(LOG_WARNING, "--- polyglot after inituci 11");
+   
         
    SDL_Event Event;
     do {
-    	
-    	// hearbeat from engine
-		if (cnt==3000000)
-		{
-			shmheartbeat[1]=1;
-		}
-	
-
-		if (cnt--==0) 
-		{
-			if (shmheartbeat[1]==1)
-			{
-				break;
-			}
-			else
-			{
-				cnt=3000000;
-				shmheartbeat[1]=1;
-			}
-		}
-
-    	// heartbeat from ployglot
-    	if (shmheartbeat[0]==1) shmheartbeat[0]=0;
-
+  
+   
     	sleep(0.1);  
     		
     	if (gbCalculateCommand && gbInitUCIFinshed)
     	{
+  	 		SYSLOG(LOG_WARNING, "--- polyglot after inituci 33");
+  
     	   gacResult[0]=0;	
 		   calculate(gacFenstring);
 		   gbCalculateCommand=false;	   
@@ -293,12 +288,15 @@ int main(int argc, char** argv) {
 		
 		if (gbStop && gbInitUCIFinshed)
 		{
+			
 		   stop(gacResult);
 		   gbStop=false;	  
 		}
 	
 		if (gbLookforCommand && shmout[0]==0)
-		{		
+		{	
+	 		SYSLOG(LOG_WARNING, "--- polyglot after inituci 44");
+  	
 		   lookfor(gacResult);
 		   gbLookforFinished=true;
 		   gbLookforCommand=false;	   
@@ -306,8 +304,12 @@ int main(int argc, char** argv) {
 		
 		if (gbInitUCICommand && shmout[0]==0 )
 		{
-			  gbInitUCIFinshed=false;
-	   		inituci();
+			gbInitUCIFinshed=false;
+			SYSLOG(LOG_WARNING, "--- polyglot before2 inituci");
+  	   		inituci();
+	   		SYSLOG(LOG_WARNING, "--- polyglot after2 inituci");
+   
+	   		
 	    	gbInitUCIFinshed=true;   
 	    	gbInitUCICommand=false;
 	    }
@@ -316,7 +318,8 @@ int main(int argc, char** argv) {
     	// Process the events
         while (SDL_PollEvent(&Event)) 
         {
-        	
+        	SYSLOG(LOG_WARNING, "--- polyglot after inituci 33");
+   	
                 	
 					switch (Event.type) 
 					{
