@@ -1,0 +1,28 @@
+Release-Notes
+-------------------------------------------------------------------
+0.0.5 First PDK-Version
+	- FEN-Generation
+	- Plugin Integration
+	- Polyglot/Engine communication via shared memory
+	- Heartbeat monitoring between Polyglot/Engine
+	- Preference Screen
+	- Invert Board
+-------------------------------------------------------------------				
+0.0.6 
+	- pawn double move fixed
+	- 'New Game'								
+-------------------------------------------------------------------				
+0.0.7
+	- en passent fixed
+	- Save actual game to database and reload at start
+	- Download Book from git		
+-------------------------------------------------------------------				
+0.1.0 Upgrade to WebOS 1.4.5 API		
+	- No compatibility to WebOS < 1.4.5		
+	-'Help'/'About' Dialog
+	- Check engine running
+	- Heartbeat monitoring removed								
+	- New game gesture
+	- Force move gesture
+	
+
