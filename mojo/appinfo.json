@@ -1,9 +1,10 @@
 {
 	"id": "com.vocshopgames.chess",
-	"version": "0.0.6",
+	"version": "0.1.0",
 	"vendor": "palm",
 	"type": "web",
 	"main": "index.html",
-	"title": "prechess",
+	"title": "Advanced Chess",
 	"icon": "icon.png",
+    "plug-ins": true
 }
