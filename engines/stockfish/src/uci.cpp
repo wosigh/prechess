@@ -40,6 +40,8 @@
 #include <syslog.h>
 #include <signal.h>
 #include "bitcount.h" 
+#include "PDL.h"
+#include "SDL.h"
 
 #define SYSLOG(a...)
 
@@ -100,6 +102,14 @@ void uci_main_loop() {
   
   while (loop)
   {	  			  	  
+		if ((SDL_GetAppState() & ~SDL_APPACTIVE) == 0) 
+    	{
+    	 	SDL_Delay(1000);
+    	}
+    	else
+    	{
+    	 	SDL_Delay(1);
+    	} 
   		if (shmin[0]!=0)
   		{		
   			command = shmin;

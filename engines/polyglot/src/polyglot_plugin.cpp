@@ -274,8 +274,15 @@ int main(int argc, char** argv) {
    SDL_Event Event;
     do {
   
-   
-    	sleep(0.1);  
+   		 // let the operating system do other things
+    	 if ((SDL_GetAppState() & ~SDL_APPACTIVE) == 0) 
+    	 {
+    	 	SDL_Delay(1000);
+    	 }
+    	 else
+    	 {
+    	 	SDL_Delay(1);
+    	 }   
     		
     	if (gbCalculateCommand && gbInitUCIFinshed)
     	{
