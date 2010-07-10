@@ -24,5 +24,11 @@ Release-Notes
 	- Heartbeat monitoring removed								
 	- New game gesture
 	- Force move gesture
+-------------------------------------------------------------------				
+0.1.1
+	- Better cpu usage, saving power
+-------------------------------------------------------------------				
+0.1.2
+	- stripped executables
 	
 

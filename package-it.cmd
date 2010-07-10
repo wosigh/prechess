@@ -22,5 +22,7 @@ copy engines\stockfish\stockfish %STAGING_DIR%
 ::copy engines\fruit\fruit %STAGING_DIR%
 copy engines\polyglot.ini %STAGING_DIR%
 ::copy engines\book.bin %STAGING_DIR%
+"c:\Program Files\CodeSourcery\Sourcery G++ Lite\arm-none-linux-gnueabi\bin\strip.exe"  %STAGING_DIR%\polyglot
+"c:\Program Files\CodeSourcery\Sourcery G++ Lite\arm-none-linux-gnueabi\bin\strip.exe"  %STAGING_DIR%\stockfish
 echo filemode.755=polyglot,stockfish,glaurung,fruit,book.bin > %STAGING_DIR%\package.properties
 pdk-package %STAGING_DIR%
